@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Pause, Play, StopCircle, CheckCircle2 } from "lucide-react";
+import ExerciseAvatar from "@/components/ExerciseAvatar";
 
 const exerciseData: Record<string, { name: string; sets: number; reps: number }> = {
   "1": { name: "Heel Slides", sets: 3, reps: 15 },
@@ -102,18 +105,34 @@ const ExercisePlayer = () => {
                 <p className="text-2xl">Excellent work on completing all sets!</p>
               </div>
             ) : (
-              <div className="text-center space-y-6">
-                <div className="relative">
-                  {/* 3D Avatar Placeholder */}
-                  <div className="w-96 h-96 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-3xl flex items-center justify-center border-4 border-primary/30">
+              <div className="w-full h-full">
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-full">
                     <div className="text-center space-y-4">
                       <Play className="h-32 w-32 text-primary mx-auto animate-pulse" />
-                      <p className="text-3xl font-bold text-primary">3D Exercise Animation</p>
-                      <p className="text-xl text-muted-foreground">Visual guide playing</p>
+                      <p className="text-2xl font-bold text-primary">Loading 3D Avatar...</p>
                     </div>
                   </div>
-                </div>
-                <p className="text-2xl text-muted-foreground">Follow the movement shown above</p>
+                }>
+                  <Canvas>
+                    <PerspectiveCamera makeDefault position={[0, 1.5, 3]} />
+                    <OrbitControls 
+                      enableZoom={true}
+                      enablePan={false}
+                      minDistance={2}
+                      maxDistance={5}
+                      maxPolarAngle={Math.PI / 2}
+                    />
+                    <ambientLight intensity={0.5} />
+                    <directionalLight position={[5, 5, 5]} intensity={1} />
+                    <directionalLight position={[-5, 3, -5]} intensity={0.5} />
+                    <ExerciseAvatar 
+                      exerciseId={id || "1"} 
+                      currentRep={currentRep}
+                      isPaused={isPaused}
+                    />
+                  </Canvas>
+                </Suspense>
               </div>
             )}
           </CardContent>
