@@ -1,6 +1,6 @@
-import { useRef, useMemo } from "react";
+import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Mesh, Group } from "three";
+import { Mesh, Group, Quaternion, Euler } from "three";
 
 interface ExerciseAvatarProps {
   exerciseId: string;
@@ -10,12 +10,11 @@ interface ExerciseAvatarProps {
 
 const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProps) => {
   const groupRef = useRef<Group>(null);
-  const rightLegRef = useRef<Mesh>(null);
-  const leftLegRef = useRef<Mesh>(null);
-  const rightArmRef = useRef<Mesh>(null);
-  const leftArmRef = useRef<Mesh>(null);
-  const rightFootRef = useRef<Mesh>(null);
-  const leftFootRef = useRef<Mesh>(null);
+  const rightUpperLegRef = useRef<Mesh>(null);
+  const rightLowerLegRef = useRef<Mesh>(null);
+  const leftUpperLegRef = useRef<Mesh>(null);
+  const leftLowerLegRef = useRef<Mesh>(null);
+  const sensorRef = useRef<Mesh>(null);
 
   const animationSpeed = 2;
 
@@ -24,116 +23,134 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
 
     const time = state.clock.getElapsedTime() * animationSpeed;
 
-    // Animation based on exercise type
+    // Helper to create quaternion from euler angles
+    const createQuaternion = (x: number, y: number, z: number) => {
+      const euler = new Euler(x, y, z);
+      return new Quaternion().setFromEuler(euler);
+    };
+
+    // Animation based on exercise type using quaternions
     switch (exerciseId) {
       case "1": // Heel Slides
-        if (rightLegRef.current && rightFootRef.current) {
-          const slide = Math.sin(time) * 0.3;
-          rightLegRef.current.rotation.x = slide;
-          rightFootRef.current.position.z = slide * 0.5;
+        if (rightUpperLegRef.current && rightLowerLegRef.current) {
+          const slide = Math.sin(time) * 0.5;
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(slide, 0, 0));
+          rightLowerLegRef.current.quaternion.copy(createQuaternion(Math.abs(slide) * 0.8, 0, 0));
         }
         break;
 
       case "2": // Quad Sets
-        if (rightLegRef.current && leftLegRef.current) {
-          const flex = Math.abs(Math.sin(time)) * 0.2;
-          rightLegRef.current.scale.y = 1 + flex;
-          leftLegRef.current.scale.y = 1 + flex;
+        if (rightUpperLegRef.current && leftUpperLegRef.current && rightLowerLegRef.current && leftLowerLegRef.current) {
+          const flex = Math.abs(Math.sin(time)) * 0.3;
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(-flex * 0.2, 0, 0));
+          leftUpperLegRef.current.quaternion.copy(createQuaternion(-flex * 0.2, 0, 0));
+          rightLowerLegRef.current.quaternion.copy(createQuaternion(flex, 0, 0));
+          leftLowerLegRef.current.quaternion.copy(createQuaternion(flex, 0, 0));
         }
         break;
 
       case "3": // Straight Leg Raises
-        if (rightLegRef.current) {
+        if (rightUpperLegRef.current && rightLowerLegRef.current) {
           const raise = Math.sin(time) * 0.5 + 0.5;
-          rightLegRef.current.rotation.x = -raise * 0.8;
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(-raise * 0.8, 0, 0));
+          rightLowerLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
         }
         break;
 
       case "4": // Ankle Pumps
-        if (rightFootRef.current && leftFootRef.current) {
+        if (rightLowerLegRef.current && leftLowerLegRef.current) {
           const pump = Math.sin(time * 2) * 0.4;
-          rightFootRef.current.rotation.x = pump;
-          leftFootRef.current.rotation.x = pump;
+          rightLowerLegRef.current.quaternion.copy(createQuaternion(pump * 0.5, 0, 0));
+          leftLowerLegRef.current.quaternion.copy(createQuaternion(pump * 0.5, 0, 0));
         }
         break;
 
       case "5": // Short Arc Quads
-        if (rightLegRef.current) {
-          const arc = Math.sin(time) * 0.3;
-          rightLegRef.current.rotation.x = arc;
+        if (rightUpperLegRef.current && rightLowerLegRef.current) {
+          const arc = Math.sin(time) * 0.4;
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(arc * 0.3, 0, 0));
+          rightLowerLegRef.current.quaternion.copy(createQuaternion(Math.abs(arc), 0, 0));
         }
         break;
 
       case "6": // Hamstring Curls
-        if (rightLegRef.current && rightFootRef.current) {
-          const curl = Math.sin(time) * 0.6;
-          rightLegRef.current.rotation.x = Math.abs(curl);
-          rightFootRef.current.rotation.x = -Math.abs(curl) * 0.5;
+        if (rightUpperLegRef.current && rightLowerLegRef.current) {
+          const curl = Math.sin(time) * 0.8;
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(Math.abs(curl) * 0.2, 0, 0));
+          rightLowerLegRef.current.quaternion.copy(createQuaternion(Math.abs(curl), 0, 0));
         }
         break;
+    }
+
+    // Sensor pulse animation
+    if (sensorRef.current) {
+      const pulse = Math.sin(time * 3) * 0.1 + 1;
+      sensorRef.current.scale.set(pulse, pulse, pulse);
     }
   });
 
   return (
-    <group ref={groupRef} position={[0, -1, 0]}>
-      {/* Head */}
-      <mesh position={[0, 1.7, 0]}>
-        <sphereGeometry args={[0.15, 32, 32]} />
-        <meshStandardMaterial color="#8B7355" />
-      </mesh>
-
-      {/* Torso */}
-      <mesh position={[0, 1.2, 0]}>
-        <boxGeometry args={[0.4, 0.6, 0.2]} />
+    <group ref={groupRef} position={[0, 0, 0]}>
+      {/* Lower Back / Pelvis */}
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[0.4, 0.25, 0.2]} />
         <meshStandardMaterial color="#4A90E2" />
       </mesh>
 
-      {/* Pelvis */}
-      <mesh position={[0, 0.75, 0]}>
-        <boxGeometry args={[0.35, 0.2, 0.2]} />
-        <meshStandardMaterial color="#4A90E2" />
-      </mesh>
-
-      {/* Right Arm */}
-      <mesh ref={rightArmRef} position={[0.3, 1.3, 0]} rotation={[0, 0, 0.3]}>
-        <cylinderGeometry args={[0.04, 0.04, 0.5, 16]} />
-        <meshStandardMaterial color="#8B7355" />
-      </mesh>
-
-      {/* Left Arm */}
-      <mesh ref={leftArmRef} position={[-0.3, 1.3, 0]} rotation={[0, 0, -0.3]}>
-        <cylinderGeometry args={[0.04, 0.04, 0.5, 16]} />
-        <meshStandardMaterial color="#8B7355" />
+      {/* Sensor in the middle of lower back */}
+      <mesh ref={sensorRef} position={[0, 0, -0.15]}>
+        <sphereGeometry args={[0.08, 16, 16]} />
+        <meshStandardMaterial color="#FF4444" emissive="#FF4444" emissiveIntensity={0.5} />
       </mesh>
 
       {/* Right Leg */}
-      <group position={[0.12, 0.4, 0]}>
-        <mesh ref={rightLegRef} position={[0, -0.25, 0]}>
-          <cylinderGeometry args={[0.06, 0.05, 0.6, 16]} />
-          <meshStandardMaterial color="#8B7355" />
-        </mesh>
-        {/* Right Foot */}
-        <mesh ref={rightFootRef} position={[0, -0.6, 0.08]}>
-          <boxGeometry args={[0.1, 0.05, 0.2]} />
-          <meshStandardMaterial color="#2C3E50" />
-        </mesh>
+      <group position={[0.15, -0.125, 0]}>
+        {/* Upper Leg (Thigh) */}
+        <group>
+          <mesh ref={rightUpperLegRef} position={[0, -0.25, 0]}>
+            <cylinderGeometry args={[0.08, 0.07, 0.5, 16]} />
+            <meshStandardMaterial color="#8B7355" />
+          </mesh>
+          
+          {/* Knee Joint */}
+          <mesh position={[0, -0.5, 0]}>
+            <sphereGeometry args={[0.09, 16, 16]} />
+            <meshStandardMaterial color="#6B5D4F" />
+          </mesh>
+          
+          {/* Lower Leg (Shin) */}
+          <mesh ref={rightLowerLegRef} position={[0, -0.75, 0]}>
+            <cylinderGeometry args={[0.07, 0.06, 0.5, 16]} />
+            <meshStandardMaterial color="#8B7355" />
+          </mesh>
+        </group>
       </group>
 
       {/* Left Leg */}
-      <group position={[-0.12, 0.4, 0]}>
-        <mesh ref={leftLegRef} position={[0, -0.25, 0]}>
-          <cylinderGeometry args={[0.06, 0.05, 0.6, 16]} />
-          <meshStandardMaterial color="#8B7355" />
-        </mesh>
-        {/* Left Foot */}
-        <mesh ref={leftFootRef} position={[0, -0.6, 0.08]}>
-          <boxGeometry args={[0.1, 0.05, 0.2]} />
-          <meshStandardMaterial color="#2C3E50" />
-        </mesh>
+      <group position={[-0.15, -0.125, 0]}>
+        {/* Upper Leg (Thigh) */}
+        <group>
+          <mesh ref={leftUpperLegRef} position={[0, -0.25, 0]}>
+            <cylinderGeometry args={[0.08, 0.07, 0.5, 16]} />
+            <meshStandardMaterial color="#8B7355" />
+          </mesh>
+          
+          {/* Knee Joint */}
+          <mesh position={[0, -0.5, 0]}>
+            <sphereGeometry args={[0.09, 16, 16]} />
+            <meshStandardMaterial color="#6B5D4F" />
+          </mesh>
+          
+          {/* Lower Leg (Shin) */}
+          <mesh ref={leftLowerLegRef} position={[0, -0.75, 0]}>
+            <cylinderGeometry args={[0.07, 0.06, 0.5, 16]} />
+            <meshStandardMaterial color="#8B7355" />
+          </mesh>
+        </group>
       </group>
 
       {/* Floor plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.9, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.25, 0]}>
         <planeGeometry args={[3, 3]} />
         <meshStandardMaterial color="#E0E0E0" opacity={0.5} transparent />
       </mesh>
