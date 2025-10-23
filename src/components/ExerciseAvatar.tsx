@@ -10,10 +10,10 @@ interface ExerciseAvatarProps {
 
 const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProps) => {
   const groupRef = useRef<Group>(null);
-  const rightUpperLegRef = useRef<Mesh>(null);
-  const rightLowerLegRef = useRef<Mesh>(null);
-  const leftUpperLegRef = useRef<Mesh>(null);
-  const leftLowerLegRef = useRef<Mesh>(null);
+  const rightUpperLegRef = useRef<Group>(null);
+  const rightKneeRef = useRef<Group>(null);
+  const leftUpperLegRef = useRef<Group>(null);
+  const leftKneeRef = useRef<Group>(null);
   const sensorRef = useRef<Mesh>(null);
 
   const animationSpeed = 2;
@@ -32,52 +32,52 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
     // Animation based on exercise type using quaternions
     switch (exerciseId) {
       case "1": // Heel Slides
-        if (rightUpperLegRef.current && rightLowerLegRef.current) {
+        if (rightUpperLegRef.current && rightKneeRef.current) {
           const slide = Math.sin(time) * 0.5;
           rightUpperLegRef.current.quaternion.copy(createQuaternion(slide, 0, 0));
-          rightLowerLegRef.current.quaternion.copy(createQuaternion(Math.abs(slide) * 0.8, 0, 0));
+          rightKneeRef.current.quaternion.copy(createQuaternion(Math.abs(slide) * 0.8, 0, 0));
         }
         break;
 
       case "2": // Quad Sets
-        if (rightUpperLegRef.current && leftUpperLegRef.current && rightLowerLegRef.current && leftLowerLegRef.current) {
+        if (rightUpperLegRef.current && leftUpperLegRef.current && rightKneeRef.current && leftKneeRef.current) {
           const flex = Math.abs(Math.sin(time)) * 0.3;
           rightUpperLegRef.current.quaternion.copy(createQuaternion(-flex * 0.2, 0, 0));
           leftUpperLegRef.current.quaternion.copy(createQuaternion(-flex * 0.2, 0, 0));
-          rightLowerLegRef.current.quaternion.copy(createQuaternion(flex, 0, 0));
-          leftLowerLegRef.current.quaternion.copy(createQuaternion(flex, 0, 0));
+          rightKneeRef.current.quaternion.copy(createQuaternion(flex, 0, 0));
+          leftKneeRef.current.quaternion.copy(createQuaternion(flex, 0, 0));
         }
         break;
 
       case "3": // Straight Leg Raises
-        if (rightUpperLegRef.current && rightLowerLegRef.current) {
+        if (rightUpperLegRef.current && rightKneeRef.current) {
           const raise = Math.sin(time) * 0.5 + 0.5;
           rightUpperLegRef.current.quaternion.copy(createQuaternion(-raise * 0.8, 0, 0));
-          rightLowerLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+          rightKneeRef.current.quaternion.copy(createQuaternion(0, 0, 0));
         }
         break;
 
       case "4": // Ankle Pumps
-        if (rightLowerLegRef.current && leftLowerLegRef.current) {
+        if (rightKneeRef.current && leftKneeRef.current) {
           const pump = Math.sin(time * 2) * 0.4;
-          rightLowerLegRef.current.quaternion.copy(createQuaternion(pump * 0.5, 0, 0));
-          leftLowerLegRef.current.quaternion.copy(createQuaternion(pump * 0.5, 0, 0));
+          rightKneeRef.current.quaternion.copy(createQuaternion(pump * 0.5, 0, 0));
+          leftKneeRef.current.quaternion.copy(createQuaternion(pump * 0.5, 0, 0));
         }
         break;
 
       case "5": // Short Arc Quads
-        if (rightUpperLegRef.current && rightLowerLegRef.current) {
+        if (rightUpperLegRef.current && rightKneeRef.current) {
           const arc = Math.sin(time) * 0.4;
           rightUpperLegRef.current.quaternion.copy(createQuaternion(arc * 0.3, 0, 0));
-          rightLowerLegRef.current.quaternion.copy(createQuaternion(Math.abs(arc), 0, 0));
+          rightKneeRef.current.quaternion.copy(createQuaternion(Math.abs(arc), 0, 0));
         }
         break;
 
       case "6": // Hamstring Curls
-        if (rightUpperLegRef.current && rightLowerLegRef.current) {
+        if (rightUpperLegRef.current && rightKneeRef.current) {
           const curl = Math.sin(time) * 0.8;
           rightUpperLegRef.current.quaternion.copy(createQuaternion(Math.abs(curl) * 0.2, 0, 0));
-          rightLowerLegRef.current.quaternion.copy(createQuaternion(Math.abs(curl), 0, 0));
+          rightKneeRef.current.quaternion.copy(createQuaternion(Math.abs(curl), 0, 0));
         }
         break;
     }
@@ -105,47 +105,57 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
 
       {/* Right Leg */}
       <group position={[0.15, -0.125, 0]}>
-        {/* Upper Leg (Thigh) */}
-        <group>
-          <mesh ref={rightUpperLegRef} position={[0, -0.25, 0]}>
+        {/* Hip Joint - rotation point for upper leg */}
+        <group ref={rightUpperLegRef}>
+          {/* Upper Leg (Thigh) */}
+          <mesh position={[0, -0.25, 0]}>
             <cylinderGeometry args={[0.08, 0.07, 0.5, 16]} />
             <meshStandardMaterial color="#8B7355" />
           </mesh>
           
-          {/* Knee Joint */}
-          <mesh position={[0, -0.5, 0]}>
-            <sphereGeometry args={[0.09, 16, 16]} />
-            <meshStandardMaterial color="#6B5D4F" />
-          </mesh>
-          
-          {/* Lower Leg (Shin) */}
-          <mesh ref={rightLowerLegRef} position={[0, -0.75, 0]}>
-            <cylinderGeometry args={[0.07, 0.06, 0.5, 16]} />
-            <meshStandardMaterial color="#8B7355" />
-          </mesh>
+          {/* Knee Joint - child of upper leg */}
+          <group ref={rightKneeRef} position={[0, -0.5, 0]}>
+            <mesh>
+              <sphereGeometry args={[0.09, 16, 16]} />
+              <meshStandardMaterial color="#6B5D4F" />
+            </mesh>
+            
+            {/* Lower Leg (Shin) - child of knee joint */}
+            <group position={[0, -0.25, 0]}>
+              <mesh>
+                <cylinderGeometry args={[0.07, 0.06, 0.5, 16]} />
+                <meshStandardMaterial color="#8B7355" />
+              </mesh>
+            </group>
+          </group>
         </group>
       </group>
 
       {/* Left Leg */}
       <group position={[-0.15, -0.125, 0]}>
-        {/* Upper Leg (Thigh) */}
-        <group>
-          <mesh ref={leftUpperLegRef} position={[0, -0.25, 0]}>
+        {/* Hip Joint - rotation point for upper leg */}
+        <group ref={leftUpperLegRef}>
+          {/* Upper Leg (Thigh) */}
+          <mesh position={[0, -0.25, 0]}>
             <cylinderGeometry args={[0.08, 0.07, 0.5, 16]} />
             <meshStandardMaterial color="#8B7355" />
           </mesh>
           
-          {/* Knee Joint */}
-          <mesh position={[0, -0.5, 0]}>
-            <sphereGeometry args={[0.09, 16, 16]} />
-            <meshStandardMaterial color="#6B5D4F" />
-          </mesh>
-          
-          {/* Lower Leg (Shin) */}
-          <mesh ref={leftLowerLegRef} position={[0, -0.75, 0]}>
-            <cylinderGeometry args={[0.07, 0.06, 0.5, 16]} />
-            <meshStandardMaterial color="#8B7355" />
-          </mesh>
+          {/* Knee Joint - child of upper leg */}
+          <group ref={leftKneeRef} position={[0, -0.5, 0]}>
+            <mesh>
+              <sphereGeometry args={[0.09, 16, 16]} />
+              <meshStandardMaterial color="#6B5D4F" />
+            </mesh>
+            
+            {/* Lower Leg (Shin) - child of knee joint */}
+            <group position={[0, -0.25, 0]}>
+              <mesh>
+                <cylinderGeometry args={[0.07, 0.06, 0.5, 16]} />
+                <meshStandardMaterial color="#8B7355" />
+              </mesh>
+            </group>
+          </group>
         </group>
       </group>
 
