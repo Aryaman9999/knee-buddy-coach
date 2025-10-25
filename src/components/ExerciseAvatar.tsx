@@ -121,9 +121,11 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
   const isSitting = pose === "sitting";
 
   // Position adjustments based on pose
-  const pelvisRotation: [number, number, number] = isSitting ? [-Math.PI / 3, 0, 0] : [0, 0, 0];
-  const pelvisPosition: [number, number, number] = isSitting ? [0, 0.3, 0] : [0, 0, 0];
-  const legYPosition = isSitting ? 0.175 : -0.125;
+  const pelvisRotation: [number, number, number] = isSitting ? [0, 0, 0] : [0, 0, 0];
+  const pelvisPosition: [number, number, number] = isSitting ? [0, 0.5, 0] : [0, 0, 0];
+  const rightLegPosition: [number, number, number] = isSitting ? [0.15, 0.375, 0.1] : [0.15, -0.125, 0];
+  const leftLegPosition: [number, number, number] = isSitting ? [-0.15, 0.375, 0.1] : [-0.15, -0.125, 0];
+  const hipRotation: [number, number, number] = isSitting ? [-Math.PI / 2, 0, 0] : [0, 0, 0];
   const floorYPosition = isSitting ? -0.8 : -1.25;
 
   return (
@@ -135,9 +137,9 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
       </mesh>
 
       {/* Right Leg */}
-      <group position={[0.15, legYPosition, 0]}>
+      <group position={rightLegPosition}>
         {/* Hip Joint - rotation point for upper leg */}
-        <group ref={rightUpperLegRef}>
+        <group ref={rightUpperLegRef} rotation={hipRotation}>
           {/* Upper Leg (Thigh) */}
           <mesh position={[0, -0.25, 0]}>
             <cylinderGeometry args={[0.08, 0.07, 0.5, 16]} />
@@ -163,9 +165,9 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
       </group>
 
       {/* Left Leg */}
-      <group position={[-0.15, legYPosition, 0]}>
+      <group position={leftLegPosition}>
         {/* Hip Joint - rotation point for upper leg */}
-        <group ref={leftUpperLegRef}>
+        <group ref={leftUpperLegRef} rotation={hipRotation}>
           {/* Upper Leg (Thigh) */}
           <mesh position={[0, -0.25, 0]}>
             <cylinderGeometry args={[0.08, 0.07, 0.5, 16]} />
