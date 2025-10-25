@@ -92,7 +92,7 @@ const AngleIndicator = ({ targetAngle, currentAngle, position, showArrows = true
       <Text
         position={[0.4, -0.25, 0]}
         fontSize={0.08}
-        color="#aaaaaa"
+        color="#000000"
         anchorX="left"
         anchorY="middle"
       >

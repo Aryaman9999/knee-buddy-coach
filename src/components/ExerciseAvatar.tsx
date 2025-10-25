@@ -15,8 +15,18 @@ const exerciseTargetAngles: Record<string, number> = {
   "2": 30,  // Quad Sets
   "3": 45,  // Straight Leg Raises
   "4": 20,  // Ankle Pumps
-  "5": 60,  // Short Arc Quads
-  "6": 90,  // Hamstring Curls
+  "5": 60,  // Short Arc Quads (Seated)
+  "6": 90,  // Hamstring Curls (Seated)
+};
+
+// Exercise poses configuration
+const exercisePoses: Record<string, "lying" | "sitting"> = {
+  "1": "lying",   // Heel Slides
+  "2": "lying",   // Quad Sets
+  "3": "lying",   // Straight Leg Raises
+  "4": "lying",   // Ankle Pumps
+  "5": "sitting", // Short Arc Quads
+  "6": "sitting", // Hamstring Curls
 };
 
 const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProps) => {
@@ -25,7 +35,6 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
   const rightKneeRef = useRef<Group>(null);
   const leftUpperLegRef = useRef<Group>(null);
   const leftKneeRef = useRef<Group>(null);
-  const sensorRef = useRef<Mesh>(null);
 
   const [currentKneeAngle, setCurrentKneeAngle] = useState(0);
 
@@ -84,27 +93,21 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
         }
         break;
 
-      case "5": // Short Arc Quads
+      case "5": // Short Arc Quads (Seated - extending from 90°)
         if (rightUpperLegRef.current && rightKneeRef.current) {
-          const arc = Math.sin(time) * 0.4;
-          rightUpperLegRef.current.quaternion.copy(createQuaternion(arc * 0.3, 0, 0));
-          rightKneeRef.current.quaternion.copy(createQuaternion(Math.abs(arc), 0, 0));
+          const extension = Math.sin(time) * 0.6; // Extension from seated position
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0)); // Thigh stays horizontal
+          rightKneeRef.current.quaternion.copy(createQuaternion(-Math.abs(extension), 0, 0)); // Negative for extension
         }
         break;
 
-      case "6": // Hamstring Curls
+      case "6": // Hamstring Curls (Seated - flexing from 90°)
         if (rightUpperLegRef.current && rightKneeRef.current) {
-          const curl = Math.sin(time) * 0.8;
-          rightUpperLegRef.current.quaternion.copy(createQuaternion(Math.abs(curl) * 0.2, 0, 0));
-          rightKneeRef.current.quaternion.copy(createQuaternion(Math.abs(curl), 0, 0));
+          const curl = Math.sin(time) * 0.9; // Curl motion
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0)); // Thigh stays horizontal
+          rightKneeRef.current.quaternion.copy(createQuaternion(Math.abs(curl), 0, 0)); // Flexion
         }
         break;
-    }
-
-    // Sensor pulse animation
-    if (sensorRef.current) {
-      const pulse = Math.sin(time * 3) * 0.1 + 1;
-      sensorRef.current.scale.set(pulse, pulse, pulse);
     }
 
     // Update current knee angle for visualization
@@ -114,22 +117,25 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
     }
   });
 
+  const pose = exercisePoses[exerciseId] || "lying";
+  const isSitting = pose === "sitting";
+
+  // Position adjustments based on pose
+  const pelvisRotation: [number, number, number] = isSitting ? [-Math.PI / 3, 0, 0] : [0, 0, 0];
+  const pelvisPosition: [number, number, number] = isSitting ? [0, 0.3, 0] : [0, 0, 0];
+  const legYPosition = isSitting ? 0.175 : -0.125;
+  const floorYPosition = isSitting ? -0.8 : -1.25;
+
   return (
     <group ref={groupRef} position={[0, 0, 0]}>
-      {/* Lower Back / Pelvis */}
-      <mesh position={[0, 0, 0]}>
+      {/* Lower Back / Pelvis - rotated for sitting */}
+      <mesh position={pelvisPosition} rotation={pelvisRotation}>
         <boxGeometry args={[0.4, 0.25, 0.2]} />
         <meshStandardMaterial color="#4A90E2" />
       </mesh>
 
-      {/* Sensor in the middle of lower back */}
-      <mesh ref={sensorRef} position={[0, 0, -0.15]}>
-        <sphereGeometry args={[0.08, 16, 16]} />
-        <meshStandardMaterial color="#FF4444" emissive="#FF4444" emissiveIntensity={0.5} />
-      </mesh>
-
       {/* Right Leg */}
-      <group position={[0.15, -0.125, 0]}>
+      <group position={[0.15, legYPosition, 0]}>
         {/* Hip Joint - rotation point for upper leg */}
         <group ref={rightUpperLegRef}>
           {/* Upper Leg (Thigh) */}
@@ -157,7 +163,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
       </group>
 
       {/* Left Leg */}
-      <group position={[-0.15, -0.125, 0]}>
+      <group position={[-0.15, legYPosition, 0]}>
         {/* Hip Joint - rotation point for upper leg */}
         <group ref={leftUpperLegRef}>
           {/* Upper Leg (Thigh) */}
@@ -185,7 +191,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
       </group>
 
       {/* Floor plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.25, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, floorYPosition, 0]}>
         <planeGeometry args={[3, 3]} />
         <meshStandardMaterial color="#E0E0E0" opacity={0.5} transparent />
       </mesh>
@@ -194,7 +200,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
       <AngleIndicator
         targetAngle={exerciseTargetAngles[exerciseId] || 90}
         currentAngle={currentKneeAngle}
-        position={new Vector3(0.15, -0.625, 0.3)}
+        position={new Vector3(0.15, isSitting ? -0.125 : -0.625, 0.3)}
         showArrows={true}
       />
     </group>
