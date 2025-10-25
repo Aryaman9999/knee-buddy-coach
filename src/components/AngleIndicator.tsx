@@ -82,7 +82,6 @@ const AngleIndicator = ({ targetAngle, currentAngle, position, showArrows = true
         color={currentColor}
         anchorX="left"
         anchorY="middle"
-        font="/fonts/inter-bold.woff"
         outlineWidth={0.01}
         outlineColor="#000000"
       >
@@ -96,7 +95,6 @@ const AngleIndicator = ({ targetAngle, currentAngle, position, showArrows = true
         color="#aaaaaa"
         anchorX="left"
         anchorY="middle"
-        font="/fonts/inter-bold.woff"
       >
         Target: {targetAngle}°
       </Text>
