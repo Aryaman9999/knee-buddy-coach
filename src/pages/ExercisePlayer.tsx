@@ -114,7 +114,17 @@ const ExercisePlayer = () => {
                     </div>
                   </div>
                 }>
-                  <Canvas>
+                  <Canvas
+                    shadows
+                    gl={{ 
+                      antialias: true, 
+                      alpha: true,
+                      preserveDrawingBuffer: true 
+                    }}
+                    onCreated={({ gl }) => {
+                      gl.setClearColor('#f8fafb', 1);
+                    }}
+                  >
                     <PerspectiveCamera makeDefault position={[0, 1.5, 3]} />
                     <OrbitControls 
                       enableZoom={true}
@@ -123,9 +133,6 @@ const ExercisePlayer = () => {
                       maxDistance={5}
                       maxPolarAngle={Math.PI / 2}
                     />
-                    <ambientLight intensity={0.5} />
-                    <directionalLight position={[5, 5, 5]} intensity={1} />
-                    <directionalLight position={[-5, 3, -5]} intensity={0.5} />
                     <ExerciseAvatar 
                       exerciseId={id || "1"} 
                       currentRep={currentRep}
