@@ -126,7 +126,6 @@ const AngleIndicator = ({ targetAngle, currentAngle, position, showArrows = true
         anchorY="middle"
         outlineWidth={0.015}
         outlineColor="#ffffff"
-        font="/fonts/inter-bold.woff"
       >
         {Math.round(currentAngle)}°
       </Text>

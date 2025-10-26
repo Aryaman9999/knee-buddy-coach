@@ -1,7 +1,6 @@
 import { useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Mesh, Group, Quaternion, Euler, Vector3 } from "three";
-import { Environment, PerspectiveCamera } from "@react-three/drei";
 import AngleIndicator from "./AngleIndicator";
 
 interface ExerciseAvatarProps {
@@ -139,9 +138,6 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
         position={[3, 5, 4]} 
         intensity={0.8} 
         color="#ffffff"
-        castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
       />
       
       {/* Fill light - gentle blue from left */}
@@ -160,7 +156,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
 
       <group ref={groupRef} position={[0, 0, 0]}>
         {/* Lower Back / Pelvis - soft teal/blue */}
-        <mesh position={pelvisPosition} rotation={pelvisRotation} castShadow>
+        <mesh position={pelvisPosition} rotation={pelvisRotation}>
           <boxGeometry args={[0.4, 0.25, 0.2]} />
           <meshStandardMaterial 
             color="#7eb3d4" 
@@ -174,7 +170,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
           {/* Hip Joint - rotation point for upper leg */}
           <group ref={rightUpperLegRef} rotation={hipRotation}>
             {/* Upper Leg (Thigh) - warm beige */}
-            <mesh position={[0, -0.25, 0]} castShadow>
+            <mesh position={[0, -0.25, 0]}>
               <cylinderGeometry args={[0.08, 0.07, 0.5, 32]} />
               <meshStandardMaterial 
                 color="#c4a788" 
@@ -186,7 +182,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
             {/* Knee Joint - highlighted with glow */}
             <group ref={rightKneeRef} position={[0, -0.5, 0]}>
               {/* Main knee sphere */}
-              <mesh castShadow>
+              <mesh>
                 <sphereGeometry args={[0.11, 32, 32]} />
                 <meshStandardMaterial 
                   color="#a89277" 
@@ -209,7 +205,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
               
               {/* Lower Leg (Shin) - warm beige */}
               <group position={[0, -0.25, 0]}>
-                <mesh castShadow>
+                <mesh>
                   <cylinderGeometry args={[0.07, 0.06, 0.5, 32]} />
                   <meshStandardMaterial 
                     color="#c4a788" 
@@ -236,7 +232,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
           {/* Hip Joint - rotation point for upper leg */}
           <group ref={leftUpperLegRef} rotation={hipRotation}>
             {/* Upper Leg (Thigh) */}
-            <mesh position={[0, -0.25, 0]} castShadow>
+            <mesh position={[0, -0.25, 0]}>
               <cylinderGeometry args={[0.08, 0.07, 0.5, 32]} />
               <meshStandardMaterial 
                 color="#c4a788" 
@@ -247,7 +243,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
             
             {/* Knee Joint */}
             <group ref={leftKneeRef} position={[0, -0.5, 0]}>
-              <mesh castShadow>
+              <mesh>
                 <sphereGeometry args={[0.11, 32, 32]} />
                 <meshStandardMaterial 
                   color="#a89277" 
@@ -258,7 +254,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
               
               {/* Lower Leg (Shin) */}
               <group position={[0, -0.25, 0]}>
-                <mesh castShadow>
+                <mesh>
                   <cylinderGeometry args={[0.07, 0.06, 0.5, 32]} />
                   <meshStandardMaterial 
                     color="#c4a788" 
@@ -283,8 +279,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
         {/* Enhanced floor with gradient effect */}
         <mesh 
           rotation={[-Math.PI / 2, 0, 0]} 
-          position={[0, floorYPosition, 0]} 
-          receiveShadow
+          position={[0, floorYPosition, 0]}
         >
           <circleGeometry args={[2.5, 64]} />
           <meshStandardMaterial 
@@ -318,9 +313,6 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
           showArrows={true}
         />
       </group>
-      
-      {/* Soft environment preset for ambient occlusion effect */}
-      <Environment preset="apartment" environmentIntensity={0.3} />
     </>
   );
 };
