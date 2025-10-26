@@ -13,14 +13,14 @@ interface AngleIndicatorProps {
 const AngleIndicator = ({ targetAngle, currentAngle, position, showArrows = true }: AngleIndicatorProps) => {
   const groupRef = useRef<Group>(null);
   
-  // Calculate color based on how close current is to target
+  // Calculate color based on how close current is to target (soft pastels)
   const getAngleColor = () => {
     const difference = Math.abs(targetAngle - currentAngle);
     
-    if (difference < 5) return "#22c55e"; // green - excellent
-    if (difference < 10) return "#eab308"; // yellow - good
-    if (difference < 20) return "#f97316"; // orange - okay
-    return "#ef4444"; // red - needs improvement
+    if (difference < 5) return "#86d99e"; // soft green - excellent
+    if (difference < 10) return "#ffd966"; // soft yellow - good
+    if (difference < 20) return "#ffb366"; // soft orange - okay
+    return "#ff9999"; // soft red - needs improvement
   };
 
   // Create arc points for the angle visualization
@@ -46,80 +46,156 @@ const AngleIndicator = ({ targetAngle, currentAngle, position, showArrows = true
   // Arrow direction (1 = extend, -1 = flex)
   const arrowDirection = currentAngle < targetAngle ? 1 : -1;
 
+  // Pulsing animation for feedback
+  useFrame((state) => {
+    if (groupRef.current && Math.abs(targetAngle - currentAngle) < 5) {
+      const pulse = Math.sin(state.clock.getElapsedTime() * 2) * 0.02 + 1;
+      groupRef.current.scale.setScalar(pulse);
+    } else if (groupRef.current) {
+      groupRef.current.scale.setScalar(1);
+    }
+  });
+
+  // Encouraging feedback text
+  const getFeedbackText = () => {
+    const difference = Math.abs(targetAngle - currentAngle);
+    if (difference < 5) return "Perfect! 🎯";
+    if (difference < 10) return "Great job!";
+    if (difference < 20) return "Almost there";
+    return currentAngle < targetAngle ? "A little higher" : "A little lower";
+  };
+
   return (
     <group ref={groupRef} position={position}>
-      {/* Target angle arc (semi-transparent white) */}
+      {/* Soft background glow */}
+      <mesh>
+        <circleGeometry args={[0.5, 32]} />
+        <meshBasicMaterial 
+          color="#ffffff" 
+          transparent 
+          opacity={0.08}
+        />
+      </mesh>
+
+      {/* Target angle arc (soft dashed line) */}
       <Line
         points={targetArcPoints}
-        color="#ffffff"
-        lineWidth={3}
-        opacity={0.3}
+        color="#b8d4e8"
+        lineWidth={4}
+        opacity={0.5}
         transparent
         dashed
-        dashSize={0.05}
-        gapSize={0.03}
+        dashSize={0.04}
+        gapSize={0.02}
       />
       
-      {/* Current angle arc (color-coded) */}
+      {/* Current angle arc (thick, color-coded with glow) */}
       <Line
         points={currentArcPoints}
         color={currentColor}
-        lineWidth={5}
-        opacity={0.9}
+        lineWidth={7}
+        opacity={1}
+        transparent
+      />
+      
+      {/* Subtle glow behind current arc */}
+      <Line
+        points={currentArcPoints}
+        color={currentColor}
+        lineWidth={12}
+        opacity={0.2}
         transparent
       />
 
-      {/* Center point */}
+      {/* Center point with subtle glow */}
       <mesh>
-        <sphereGeometry args={[0.04, 16, 16]} />
-        <meshBasicMaterial color="#ffffff" />
+        <sphereGeometry args={[0.05, 32, 32]} />
+        <meshStandardMaterial 
+          color="#ffffff" 
+          emissive={currentColor}
+          emissiveIntensity={0.3}
+        />
       </mesh>
 
-      {/* Angle text */}
+      {/* Main angle display - large and clear */}
       <Text
-        position={[0.4, -0.1, 0]}
-        fontSize={0.12}
+        position={[0.45, -0.05, 0]}
+        fontSize={0.16}
         color={currentColor}
         anchorX="left"
         anchorY="middle"
-        outlineWidth={0.01}
-        outlineColor="#000000"
+        outlineWidth={0.015}
+        outlineColor="#ffffff"
+        font="/fonts/inter-bold.woff"
       >
         {Math.round(currentAngle)}°
       </Text>
 
-      {/* Target angle text */}
+      {/* Target angle text - smaller, subtle */}
       <Text
-        position={[0.4, -0.25, 0]}
-        fontSize={0.08}
-        color="#000000"
+        position={[0.45, -0.22, 0]}
+        fontSize={0.09}
+        color="#5a7a92"
         anchorX="left"
         anchorY="middle"
+        outlineWidth={0.005}
+        outlineColor="#ffffff"
       >
         Target: {targetAngle}°
       </Text>
 
-      {/* Directional arrows */}
+      {/* Encouraging feedback text */}
+      <Text
+        position={[0.45, -0.35, 0]}
+        fontSize={0.1}
+        color={currentColor}
+        anchorX="left"
+        anchorY="middle"
+        outlineWidth={0.008}
+        outlineColor="#ffffff"
+      >
+        {getFeedbackText()}
+      </Text>
+
+      {/* Smooth animated directional arrows */}
       {showArrows && Math.abs(targetAngle - currentAngle) > 5 && (
         <group>
-          {/* Arrow 1 */}
-          <mesh position={[0.5, -0.4 * arrowDirection, 0]}>
-            <coneGeometry args={[0.05, 0.15, 8]} />
-            <meshBasicMaterial color={currentColor} />
-            <mesh rotation={[0, 0, arrowDirection > 0 ? Math.PI : 0]}>
-              <coneGeometry args={[0.05, 0.15, 8]} />
-              <meshBasicMaterial color={currentColor} />
-            </mesh>
+          {/* Arrow 1 with gentle pulse */}
+          <mesh 
+            position={[
+              0.55, 
+              -0.5 * arrowDirection + Math.sin(Date.now() * 0.003) * 0.05, 
+              0
+            ]}
+            rotation={[0, 0, arrowDirection > 0 ? 0 : Math.PI]}
+          >
+            <coneGeometry args={[0.06, 0.18, 16]} />
+            <meshStandardMaterial 
+              color={currentColor} 
+              emissive={currentColor}
+              emissiveIntensity={0.3}
+              transparent
+              opacity={0.85}
+            />
           </mesh>
           
-          {/* Arrow 2 */}
-          <mesh position={[0.6, -0.4 * arrowDirection, 0]}>
-            <coneGeometry args={[0.05, 0.15, 8]} />
-            <meshBasicMaterial color={currentColor} />
-            <mesh rotation={[0, 0, arrowDirection > 0 ? Math.PI : 0]}>
-              <coneGeometry args={[0.05, 0.15, 8]} />
-              <meshBasicMaterial color={currentColor} />
-            </mesh>
+          {/* Arrow 2 with offset pulse */}
+          <mesh 
+            position={[
+              0.68, 
+              -0.5 * arrowDirection + Math.sin(Date.now() * 0.003 + Math.PI / 2) * 0.05, 
+              0
+            ]}
+            rotation={[0, 0, arrowDirection > 0 ? 0 : Math.PI]}
+          >
+            <coneGeometry args={[0.06, 0.18, 16]} />
+            <meshStandardMaterial 
+              color={currentColor} 
+              emissive={currentColor}
+              emissiveIntensity={0.3}
+              transparent
+              opacity={0.7}
+            />
           </mesh>
         </group>
       )}

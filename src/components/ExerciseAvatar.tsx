@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Mesh, Group, Quaternion, Euler, Vector3 } from "three";
+import { Environment, PerspectiveCamera } from "@react-three/drei";
 import AngleIndicator from "./AngleIndicator";
 
 interface ExerciseAvatarProps {
@@ -129,83 +130,198 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
   const floorYPosition = isSitting ? -0.8 : -1.25;
 
   return (
-    <group ref={groupRef} position={[0, 0, 0]}>
-      {/* Lower Back / Pelvis - rotated for sitting */}
-      <mesh position={pelvisPosition} rotation={pelvisRotation}>
-        <boxGeometry args={[0.4, 0.25, 0.2]} />
-        <meshStandardMaterial color="#4A90E2" />
-      </mesh>
-
-      {/* Right Leg */}
-      <group position={rightLegPosition}>
-        {/* Hip Joint - rotation point for upper leg */}
-        <group ref={rightUpperLegRef} rotation={hipRotation}>
-          {/* Upper Leg (Thigh) */}
-          <mesh position={[0, -0.25, 0]}>
-            <cylinderGeometry args={[0.08, 0.07, 0.5, 16]} />
-            <meshStandardMaterial color="#8B7355" />
-          </mesh>
-          
-          {/* Knee Joint - child of upper leg */}
-          <group ref={rightKneeRef} position={[0, -0.5, 0]}>
-            <mesh>
-              <sphereGeometry args={[0.09, 16, 16]} />
-              <meshStandardMaterial color="#6B5D4F" />
-            </mesh>
-            
-            {/* Lower Leg (Shin) - child of knee joint */}
-            <group position={[0, -0.25, 0]}>
-              <mesh>
-                <cylinderGeometry args={[0.07, 0.06, 0.5, 16]} />
-                <meshStandardMaterial color="#8B7355" />
-              </mesh>
-            </group>
-          </group>
-        </group>
-      </group>
-
-      {/* Left Leg */}
-      <group position={leftLegPosition}>
-        {/* Hip Joint - rotation point for upper leg */}
-        <group ref={leftUpperLegRef} rotation={hipRotation}>
-          {/* Upper Leg (Thigh) */}
-          <mesh position={[0, -0.25, 0]}>
-            <cylinderGeometry args={[0.08, 0.07, 0.5, 16]} />
-            <meshStandardMaterial color="#8B7355" />
-          </mesh>
-          
-          {/* Knee Joint - child of upper leg */}
-          <group ref={leftKneeRef} position={[0, -0.5, 0]}>
-            <mesh>
-              <sphereGeometry args={[0.09, 16, 16]} />
-              <meshStandardMaterial color="#6B5D4F" />
-            </mesh>
-            
-            {/* Lower Leg (Shin) - child of knee joint */}
-            <group position={[0, -0.25, 0]}>
-              <mesh>
-                <cylinderGeometry args={[0.07, 0.06, 0.5, 16]} />
-                <meshStandardMaterial color="#8B7355" />
-              </mesh>
-            </group>
-          </group>
-        </group>
-      </group>
-
-      {/* Floor plane */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, floorYPosition, 0]}>
-        <planeGeometry args={[3, 3]} />
-        <meshStandardMaterial color="#E0E0E0" opacity={0.5} transparent />
-      </mesh>
-
-      {/* Angle Indicator at right knee */}
-      <AngleIndicator
-        targetAngle={exerciseTargetAngles[exerciseId] || 90}
-        currentAngle={currentKneeAngle}
-        position={new Vector3(0.15, isSitting ? -0.125 : -0.625, 0.3)}
-        showArrows={true}
+    <>
+      {/* Soft ambient lighting for calm atmosphere */}
+      <ambientLight intensity={0.6} color="#f0f4f8" />
+      
+      {/* Key light - soft white from top-right */}
+      <directionalLight 
+        position={[3, 5, 4]} 
+        intensity={0.8} 
+        color="#ffffff"
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
       />
-    </group>
+      
+      {/* Fill light - gentle blue from left */}
+      <directionalLight 
+        position={[-3, 3, 2]} 
+        intensity={0.4} 
+        color="#a8d5f2"
+      />
+      
+      {/* Rim light - subtle highlight */}
+      <pointLight 
+        position={[0, 2, -3]} 
+        intensity={0.3} 
+        color="#e8f5e9"
+      />
+
+      <group ref={groupRef} position={[0, 0, 0]}>
+        {/* Lower Back / Pelvis - soft teal/blue */}
+        <mesh position={pelvisPosition} rotation={pelvisRotation} castShadow>
+          <boxGeometry args={[0.4, 0.25, 0.2]} />
+          <meshStandardMaterial 
+            color="#7eb3d4" 
+            roughness={0.4}
+            metalness={0.1}
+          />
+        </mesh>
+
+        {/* Right Leg */}
+        <group position={rightLegPosition}>
+          {/* Hip Joint - rotation point for upper leg */}
+          <group ref={rightUpperLegRef} rotation={hipRotation}>
+            {/* Upper Leg (Thigh) - warm beige */}
+            <mesh position={[0, -0.25, 0]} castShadow>
+              <cylinderGeometry args={[0.08, 0.07, 0.5, 32]} />
+              <meshStandardMaterial 
+                color="#c4a788" 
+                roughness={0.5}
+                metalness={0.05}
+              />
+            </mesh>
+            
+            {/* Knee Joint - highlighted with glow */}
+            <group ref={rightKneeRef} position={[0, -0.5, 0]}>
+              {/* Main knee sphere */}
+              <mesh castShadow>
+                <sphereGeometry args={[0.11, 32, 32]} />
+                <meshStandardMaterial 
+                  color="#a89277" 
+                  roughness={0.3}
+                  metalness={0.1}
+                  emissive="#ffd89b"
+                  emissiveIntensity={0.15}
+                />
+              </mesh>
+              
+              {/* Glow ring around knee */}
+              <mesh rotation={[Math.PI / 2, 0, 0]}>
+                <torusGeometry args={[0.13, 0.015, 16, 32]} />
+                <meshBasicMaterial 
+                  color="#ffd89b" 
+                  transparent 
+                  opacity={0.4}
+                />
+              </mesh>
+              
+              {/* Lower Leg (Shin) - warm beige */}
+              <group position={[0, -0.25, 0]}>
+                <mesh castShadow>
+                  <cylinderGeometry args={[0.07, 0.06, 0.5, 32]} />
+                  <meshStandardMaterial 
+                    color="#c4a788" 
+                    roughness={0.5}
+                    metalness={0.05}
+                  />
+                </mesh>
+                
+                {/* Foot indicator */}
+                <mesh position={[0, -0.3, 0.05]}>
+                  <boxGeometry args={[0.08, 0.04, 0.12]} />
+                  <meshStandardMaterial 
+                    color="#b39677" 
+                    roughness={0.6}
+                  />
+                </mesh>
+              </group>
+            </group>
+          </group>
+        </group>
+
+        {/* Left Leg */}
+        <group position={leftLegPosition}>
+          {/* Hip Joint - rotation point for upper leg */}
+          <group ref={leftUpperLegRef} rotation={hipRotation}>
+            {/* Upper Leg (Thigh) */}
+            <mesh position={[0, -0.25, 0]} castShadow>
+              <cylinderGeometry args={[0.08, 0.07, 0.5, 32]} />
+              <meshStandardMaterial 
+                color="#c4a788" 
+                roughness={0.5}
+                metalness={0.05}
+              />
+            </mesh>
+            
+            {/* Knee Joint */}
+            <group ref={leftKneeRef} position={[0, -0.5, 0]}>
+              <mesh castShadow>
+                <sphereGeometry args={[0.11, 32, 32]} />
+                <meshStandardMaterial 
+                  color="#a89277" 
+                  roughness={0.3}
+                  metalness={0.1}
+                />
+              </mesh>
+              
+              {/* Lower Leg (Shin) */}
+              <group position={[0, -0.25, 0]}>
+                <mesh castShadow>
+                  <cylinderGeometry args={[0.07, 0.06, 0.5, 32]} />
+                  <meshStandardMaterial 
+                    color="#c4a788" 
+                    roughness={0.5}
+                    metalness={0.05}
+                  />
+                </mesh>
+                
+                {/* Foot indicator */}
+                <mesh position={[0, -0.3, 0.05]}>
+                  <boxGeometry args={[0.08, 0.04, 0.12]} />
+                  <meshStandardMaterial 
+                    color="#b39677" 
+                    roughness={0.6}
+                  />
+                </mesh>
+              </group>
+            </group>
+          </group>
+        </group>
+
+        {/* Enhanced floor with gradient effect */}
+        <mesh 
+          rotation={[-Math.PI / 2, 0, 0]} 
+          position={[0, floorYPosition, 0]} 
+          receiveShadow
+        >
+          <circleGeometry args={[2.5, 64]} />
+          <meshStandardMaterial 
+            color="#e8eff5" 
+            roughness={0.9}
+            metalness={0.05}
+            opacity={0.95} 
+            transparent 
+          />
+        </mesh>
+        
+        {/* Subtle grid pattern on floor */}
+        <mesh 
+          rotation={[-Math.PI / 2, 0, 0]} 
+          position={[0, floorYPosition + 0.001, 0]}
+        >
+          <circleGeometry args={[2.5, 64]} />
+          <meshBasicMaterial 
+            color="#d0dde8" 
+            wireframe 
+            opacity={0.15} 
+            transparent 
+          />
+        </mesh>
+
+        {/* Angle Indicator at right knee */}
+        <AngleIndicator
+          targetAngle={exerciseTargetAngles[exerciseId] || 90}
+          currentAngle={currentKneeAngle}
+          position={new Vector3(0.15, isSitting ? -0.125 : -0.625, 0.3)}
+          showArrows={true}
+        />
+      </group>
+      
+      {/* Soft environment preset for ambient occlusion effect */}
+      <Environment preset="apartment" environmentIntensity={0.3} />
+    </>
   );
 };
 
