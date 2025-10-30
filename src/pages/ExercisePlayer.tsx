@@ -16,18 +16,60 @@ const exerciseData: Record<string, { name: string; sets: number; reps: number }>
   "6": { name: "Hamstring Curls", sets: 3, reps: 12 },
 };
 
+type ExercisePhase = 'demo' | 'countdown' | 'live' | 'complete';
+
 const ExercisePlayer = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [currentSet, setCurrentSet] = useState(1);
   const [currentRep, setCurrentRep] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [feedback, setFeedback] = useState("Ready to begin!");
+  const [feedback, setFeedback] = useState("Watch the demonstration carefully!");
+  const [exercisePhase, setExercisePhase] = useState<ExercisePhase>('demo');
+  const [countdownValue, setCountdownValue] = useState(3);
+  const [demoTimer, setDemoTimer] = useState(10);
 
   const exercise = id ? exerciseData[id] : null;
 
+  // Demo phase timer
   useEffect(() => {
-    if (!exercise || isPaused) return;
+    if (exercisePhase !== 'demo') return;
+    
+    const interval = setInterval(() => {
+      setDemoTimer(prev => {
+        if (prev <= 1) {
+          setExercisePhase('countdown');
+          setFeedback("Get ready to begin!");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [exercisePhase]);
+
+  // Countdown phase timer
+  useEffect(() => {
+    if (exercisePhase !== 'countdown') return;
+    
+    const interval = setInterval(() => {
+      setCountdownValue(prev => {
+        if (prev <= 1) {
+          setExercisePhase('live');
+          setFeedback("Let's go! Follow along!");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [exercisePhase]);
+
+  // Exercise rep counter (only runs in live phase)
+  useEffect(() => {
+    if (!exercise || isPaused || exercisePhase !== 'live') return;
 
     const feedbackMessages = [
       "Great form!",
@@ -42,21 +84,22 @@ const ExercisePlayer = () => {
         if (prev < exercise.reps) {
           setFeedback(feedbackMessages[Math.floor(Math.random() * feedbackMessages.length)]);
           return prev + 1;
-        } else {
-          if (currentSet < exercise.sets) {
-            setCurrentSet(currentSet + 1);
-            return 0;
           } else {
-            clearInterval(interval);
-            setFeedback("Set complete! Great work!");
-          }
-          return prev;
+            if (currentSet < exercise.sets) {
+              setCurrentSet(currentSet + 1);
+              return 0;
+            } else {
+              clearInterval(interval);
+              setExercisePhase('complete');
+              setFeedback("Exercise complete! Excellent work!");
+            }
+            return prev;
         }
       });
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [exercise, currentSet, isPaused]);
+  }, [exercise, currentSet, isPaused, exercisePhase]);
 
   if (!exercise) {
     return (
@@ -96,9 +139,9 @@ const ExercisePlayer = () => {
 
       {/* Main Exercise Visualization */}
       <div className="flex-1 flex items-center justify-center p-8">
-        <Card className="w-full max-w-6xl h-[600px] bg-muted/20 border-4 border-primary">
+        <Card className="w-full max-w-6xl h-[600px] bg-muted/20 border-4 border-primary relative">
           <CardContent className="h-full flex items-center justify-center">
-            {currentRep >= exercise.reps && currentSet >= exercise.sets ? (
+            {exercisePhase === 'complete' ? (
               <div className="text-center space-y-8">
                 <CheckCircle2 className="h-48 w-48 text-success mx-auto" />
                 <h2 className="text-5xl font-bold text-success">Exercise Complete!</h2>
@@ -137,9 +180,53 @@ const ExercisePlayer = () => {
                       exerciseId={id || "1"} 
                       currentRep={currentRep}
                       isPaused={isPaused}
+                      mode={exercisePhase === 'demo' ? 'demo' : 'live'}
                     />
                   </Canvas>
                 </Suspense>
+              </div>
+            )}
+
+            {/* Demo Phase Overlay */}
+            {exercisePhase === 'demo' && (
+              <div className="absolute inset-0 z-10 pointer-events-none flex items-start justify-center pt-8">
+                <div className="bg-primary/95 text-primary-foreground px-8 py-6 rounded-lg shadow-2xl backdrop-blur-sm border-2 border-primary-foreground/20 animate-fade-in">
+                  <h2 className="text-3xl font-bold mb-2 text-center">Watch the Demonstration</h2>
+                  <p className="text-xl text-center">Starting in {demoTimer} seconds...</p>
+                  <div className="mt-4 flex justify-center">
+                    <div className="h-2 w-64 bg-primary-foreground/20 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary-foreground transition-all duration-1000"
+                        style={{ width: `${((10 - demoTimer) / 10) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Countdown Phase Overlay */}
+            {exercisePhase === 'countdown' && (
+              <div className="absolute inset-0 z-20 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+                <div className="text-center animate-scale-in">
+                  <div className="text-9xl font-bold text-white mb-4 animate-pulse">
+                    {countdownValue > 0 ? countdownValue : 'GO!'}
+                  </div>
+                  <p className="text-3xl text-white font-semibold">
+                    {countdownValue === 3 && "Get Ready!"}
+                    {countdownValue === 2 && "Almost there!"}
+                    {countdownValue === 1 && "Here we go!"}
+                    {countdownValue === 0 && "Start moving!"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Live Mode Badge */}
+            {exercisePhase === 'live' && (
+              <div className="absolute top-4 right-4 z-10 bg-success/90 text-success-foreground px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-fade-in">
+                <div className="h-3 w-3 bg-success-foreground rounded-full animate-pulse"></div>
+                <span className="font-semibold">LIVE MODE</span>
               </div>
             )}
           </CardContent>
@@ -168,7 +255,7 @@ const ExercisePlayer = () => {
             size="lg"
             className="flex-1"
             onClick={() => setIsPaused(!isPaused)}
-            disabled={currentRep >= exercise.reps && currentSet >= exercise.sets}
+            disabled={exercisePhase !== 'live'}
           >
             {isPaused ? (
               <>

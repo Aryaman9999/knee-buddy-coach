@@ -7,6 +7,7 @@ interface ExerciseAvatarProps {
   exerciseId: string;
   currentRep: number;
   isPaused: boolean;
+  mode: 'demo' | 'live';
 }
 
 // Target angles for each exercise (in degrees)
@@ -29,7 +30,7 @@ const exercisePoses: Record<string, "lying" | "sitting"> = {
   "6": "sitting", // Hamstring Curls
 };
 
-const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProps) => {
+const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode }: ExerciseAvatarProps) => {
   const groupRef = useRef<Group>(null);
   const rightUpperLegRef = useRef<Group>(null);
   const rightKneeRef = useRef<Group>(null);
@@ -49,6 +50,8 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused }: ExerciseAvatarProp
   useFrame((state) => {
     if (!groupRef.current || isPaused) return;
 
+    // In demo mode, use slower animation speed for better learning
+    const animationSpeed = mode === 'demo' ? 0.5 : 1.0;
     const time = state.clock.getElapsedTime() * animationSpeed;
 
     // Helper to create quaternion from euler angles
