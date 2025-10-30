@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Mesh, Group, Quaternion, Euler, Vector3 } from "three";
+import { SensorPacket } from "@/types/sensorData";
+import { sensorDataMapper } from "@/utils/sensorDataMapper";
 import AngleIndicator from "./AngleIndicator";
 
 interface ExerciseAvatarProps {
@@ -8,6 +10,7 @@ interface ExerciseAvatarProps {
   currentRep: number;
   isPaused: boolean;
   mode: 'demo' | 'live';
+  sensorData?: SensorPacket | null;
 }
 
 // Target angles for each exercise (in degrees)
@@ -30,7 +33,7 @@ const exercisePoses: Record<string, "lying" | "sitting"> = {
   "6": "sitting", // Hamstring Curls
 };
 
-const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode }: ExerciseAvatarProps) => {
+const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData }: ExerciseAvatarProps) => {
   const groupRef = useRef<Group>(null);
   const rightUpperLegRef = useRef<Group>(null);
   const rightKneeRef = useRef<Group>(null);
@@ -50,6 +53,47 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode }: ExerciseAvat
   useFrame((state) => {
     if (!groupRef.current || isPaused) return;
 
+    // Live mode: Apply sensor data to joints
+    if (mode === 'live' && sensorData) {
+      if (!sensorDataMapper.isValidPacket(sensorData)) {
+        console.warn('Invalid sensor packet received');
+        return;
+      }
+
+      const processed = sensorDataMapper.processSensorPacket(sensorData, true);
+
+      // Apply quaternions to leg joints
+      if (rightUpperLegRef.current) {
+        const thighQ = sensorDataMapper.toThreeQuaternion(processed.sensors.right_thigh);
+        rightUpperLegRef.current.quaternion.copy(thighQ);
+      }
+
+      if (rightKneeRef.current) {
+        const shinQ = sensorDataMapper.toThreeQuaternion(processed.sensors.right_shin);
+        rightKneeRef.current.quaternion.copy(shinQ);
+      }
+
+      if (leftUpperLegRef.current) {
+        const thighQ = sensorDataMapper.toThreeQuaternion(processed.sensors.left_thigh);
+        leftUpperLegRef.current.quaternion.copy(thighQ);
+      }
+
+      if (leftKneeRef.current) {
+        const shinQ = sensorDataMapper.toThreeQuaternion(processed.sensors.left_shin);
+        leftKneeRef.current.quaternion.copy(shinQ);
+      }
+
+      // Calculate and update knee angle
+      const kneeAngle = sensorDataMapper.calculateJointAngle(
+        processed.sensors.right_thigh,
+        processed.sensors.right_shin
+      );
+      setCurrentKneeAngle(kneeAngle);
+      
+      return;
+    }
+
+    // Demo mode: Use animated demo
     // In demo mode, use slower animation speed for better learning
     const animationSpeed = mode === 'demo' ? 0.5 : 1.0;
     const time = state.clock.getElapsedTime() * animationSpeed;

@@ -1,10 +1,14 @@
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Pause, Play, StopCircle, CheckCircle2 } from "lucide-react";
+import SensorConnection from "@/components/SensorConnection";
+import { bluetoothService } from "@/services/bluetoothService";
+import { SensorPacket } from "@/types/sensorData";
+import { Suspense } from "react";
 import ExerciseAvatar from "@/components/ExerciseAvatar";
 
 const exerciseData: Record<string, { name: string; sets: number; reps: number }> = {
@@ -28,8 +32,19 @@ const ExercisePlayer = () => {
   const [exercisePhase, setExercisePhase] = useState<ExercisePhase>('demo');
   const [countdownValue, setCountdownValue] = useState(3);
   const [demoTimer, setDemoTimer] = useState(10);
+  const [sensorData, setSensorData] = useState<SensorPacket | null>(null);
+  const [isSensorConnected, setIsSensorConnected] = useState(false);
 
   const exercise = id ? exerciseData[id] : null;
+
+  // Subscribe to sensor data
+  useEffect(() => {
+    const unsubscribe = bluetoothService.onDataReceived((data) => {
+      setSensorData(data);
+    });
+
+    return unsubscribe;
+  }, []);
 
   // Demo phase timer
   useEffect(() => {
@@ -120,6 +135,13 @@ const ExercisePlayer = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Sensor Connection Banner */}
+      <div className="bg-card border-b-2 border-primary p-4">
+        <div className="max-w-7xl mx-auto">
+          <SensorConnection onConnectionChange={setIsSensorConnected} />
+        </div>
+      </div>
+
       {/* Exercise Info Header */}
       <div className="bg-primary text-primary-foreground p-6 shadow-lg">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -181,6 +203,7 @@ const ExercisePlayer = () => {
                       currentRep={currentRep}
                       isPaused={isPaused}
                       mode={exercisePhase === 'demo' ? 'demo' : 'live'}
+                      sensorData={sensorData}
                     />
                   </Canvas>
                 </Suspense>
