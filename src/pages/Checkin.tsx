@@ -1,10 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { AlertCircle, CheckCircle2, Activity } from "lucide-react";
+import { AlertCircle, CheckCircle2, Activity, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { bluetoothService } from "@/services/bluetoothService";
+import { gaitAnalyzer } from "@/utils/gaitAnalyzer";
+import { GaitAnalysisResult, GaitTestPhase } from "@/types/gaitAnalysis";
+import { SensorPacket } from "@/types/sensorData";
+import GaitResults from "@/components/GaitResults";
+import { Canvas } from "@react-three/fiber";
+import { Suspense } from "react";
+import ExerciseAvatar from "@/components/ExerciseAvatar";
 
 const safetyQuestions = [
   "Are you experiencing severe, constant knee pain that doesn't improve with rest?",
@@ -27,8 +35,15 @@ const Checkin = () => {
   const [safetyAnswers, setSafetyAnswers] = useState<boolean[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [questionnaireAnswers, setQuestionnaireAnswers] = useState<number[]>([]);
-  const [sensorConnected, setSensorConnected] = useState(false);
-  const [testComplete, setTestComplete] = useState(false);
+  
+  // Gait test states
+  const [gaitPhase, setGaitPhase] = useState<GaitTestPhase>('connect');
+  const [sensorData, setSensorData] = useState<SensorPacket | null>(null);
+  const [stepCount, setStepCount] = useState(0);
+  const [testProgress, setTestProgress] = useState(0);
+  const [calibrationCountdown, setCalibrationCountdown] = useState(3);
+  const [gaitResult, setGaitResult] = useState<GaitAnalysisResult | null>(null);
+  const [isSensorConnected, setIsSensorConnected] = useState(false);
 
   const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
@@ -63,23 +78,95 @@ const Checkin = () => {
     }
   };
 
-  const handleConnectSensors = () => {
-    // Simulate sensor connection
-    setTimeout(() => {
-      setSensorConnected(true);
-      toast({
-        title: "Sensors Connected",
-        description: "Ready to start gait test!",
+  useEffect(() => {
+    // Subscribe to sensor data during gait test
+    if (gaitPhase === 'walking' && isSensorConnected) {
+      const unsubscribe = bluetoothService.onDataReceived((packet) => {
+        setSensorData(packet);
+        const steps = gaitAnalyzer.collectGaitData(packet);
+        setStepCount(steps);
+        
+        // Progress based on step count (target: 10 steps)
+        const progress = Math.min((steps / 10) * 100, 100);
+        setTestProgress(progress);
+        
+        // Auto-complete after 10 steps or 20 seconds
+        if (steps >= 10 || gaitAnalyzer.getDataCount() > 400) {
+          handleCompleteTest();
+        }
       });
-    }, 1500);
+      
+      return unsubscribe;
+    }
+  }, [gaitPhase, isSensorConnected]);
+
+  // Calibration countdown
+  useEffect(() => {
+    if (gaitPhase === 'calibrate' && calibrationCountdown > 0) {
+      const timer = setTimeout(() => {
+        setCalibrationCountdown(calibrationCountdown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (gaitPhase === 'calibrate' && calibrationCountdown === 0) {
+      // Capture calibration
+      if (sensorData) {
+        gaitAnalyzer.reset();
+        toast({
+          title: "Calibration Complete",
+          description: "Start walking at a comfortable pace",
+        });
+        setGaitPhase('walking');
+      }
+    }
+  }, [gaitPhase, calibrationCountdown, sensorData]);
+
+  const handleConnectSensors = async () => {
+    try {
+      setGaitPhase('connect');
+      await bluetoothService.requestDevice();
+      await bluetoothService.connect();
+      
+      // Subscribe to connection state
+      bluetoothService.onStateChange((state) => {
+        setIsSensorConnected(state.isConnected);
+        if (state.isConnected) {
+          toast({
+            title: "Sensors Connected",
+            description: "Stand in a T-pose for calibration",
+          });
+          setGaitPhase('calibrate');
+          setCalibrationCountdown(3);
+        } else if (state.error) {
+          toast({
+            title: "Connection Error",
+            description: state.error,
+            variant: "destructive",
+          });
+        }
+      });
+    } catch (error) {
+      toast({
+        title: "Connection Failed",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleStartTest = () => {
-    // Simulate test completion
+  const handleCompleteTest = () => {
+    setGaitPhase('analyzing');
+    
     setTimeout(() => {
-      setTestComplete(true);
+      const result = gaitAnalyzer.analyze();
+      setGaitResult(result);
+      setGaitPhase('results');
       setStep(4);
-    }, 3000);
+      
+      toast({
+        title: "Analysis Complete",
+        description: `${result.diagnoses.length} findings detected`,
+      });
+    }, 2000);
   };
 
   const handleComplete = () => {
@@ -198,52 +285,81 @@ const Checkin = () => {
                 Gait Test
               </CardTitle>
               <CardDescription className="text-xl">
-                Measure your walking speed
+                {gaitPhase === 'connect' && "Connect your sensors"}
+                {gaitPhase === 'calibrate' && "Stand in T-pose for calibration"}
+                {gaitPhase === 'walking' && "Walk at a comfortable pace"}
+                {gaitPhase === 'analyzing' && "Analyzing your gait pattern"}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-8 text-center">
-              {!sensorConnected ? (
-                <>
-                  <p className="text-2xl">Please stand up and prepare to walk 10 steps.</p>
-                  <Button size="lg" onClick={handleConnectSensors}>
-                    Connect to Sensors
-                  </Button>
-                </>
-              ) : !testComplete ? (
-                <>
-                  <p className="text-2xl text-success">Sensors Connected!</p>
-                  <p className="text-xl">Press Start when ready to begin walking.</p>
-                  <Button variant="success" size="lg" onClick={handleStartTest}>
-                    Start Test
-                  </Button>
-                </>
-              ) : (
-                <div className="space-y-6">
-                  <CheckCircle2 className="h-24 w-24 text-success mx-auto" />
-                  <p className="text-3xl font-bold text-success">Test Complete!</p>
+            <CardContent className="space-y-6">
+              {/* Live Avatar Visualization */}
+              {isSensorConnected && (
+                <div className="h-[300px] bg-secondary/20 rounded-lg overflow-hidden">
+                  <Suspense fallback={<div className="flex items-center justify-center h-full">Loading...</div>}>
+                    <Canvas camera={{ position: [0, 1, 3], fov: 50 }}>
+                      <ExerciseAvatar
+                        exerciseId="1"
+                        currentRep={0}
+                        isPaused={false}
+                        mode="live"
+                        sensorData={sensorData}
+                        isSensorConnected={isSensorConnected}
+                      />
+                    </Canvas>
+                  </Suspense>
                 </div>
               )}
+
+              <div className="text-center space-y-6">
+                {gaitPhase === 'connect' && (
+                  <>
+                    <p className="text-xl">Connect your IMU sensors to begin the gait analysis</p>
+                    <Button size="lg" onClick={handleConnectSensors}>
+                      <Activity className="mr-2 h-5 w-5" />
+                      Connect Sensors
+                    </Button>
+                  </>
+                )}
+
+                {gaitPhase === 'calibrate' && (
+                  <>
+                    <div className="text-6xl font-bold text-primary">{calibrationCountdown}</div>
+                    <p className="text-xl">Stand still in a T-pose with feet together and arms extended</p>
+                  </>
+                )}
+
+                {gaitPhase === 'walking' && (
+                  <>
+                    <div className="space-y-4">
+                      <div className="text-4xl font-bold text-primary">{stepCount} / 10 steps</div>
+                      <Progress value={testProgress} className="h-4" />
+                      <p className="text-xl">Keep walking at a comfortable pace</p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleCompleteTest}
+                      disabled={stepCount < 5}
+                    >
+                      {stepCount >= 5 ? 'Finish Test' : `Need ${5 - stepCount} more steps`}
+                    </Button>
+                  </>
+                )}
+
+                {gaitPhase === 'analyzing' && (
+                  <>
+                    <Loader2 className="h-16 w-16 animate-spin mx-auto text-primary" />
+                    <p className="text-xl">Analyzing your gait pattern...</p>
+                    <p className="text-sm text-muted-foreground">Processing {gaitAnalyzer.getDataCount()} sensor readings</p>
+                  </>
+                )}
+              </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Step 4: Completion */}
-        {step === 4 && (
-          <Card className="bg-gradient-to-br from-success to-success/80 text-success-foreground">
-            <CardContent className="p-12 text-center space-y-8">
-              <CheckCircle2 className="h-32 w-32 mx-auto" />
-              <h2 className="text-5xl font-bold">Check-in Complete!</h2>
-              <p className="text-2xl">We have updated your exercise plan based on your progress.</p>
-              <Button 
-                variant="secondary" 
-                size="lg" 
-                className="text-2xl h-20 px-12"
-                onClick={handleComplete}
-              >
-                See My New Plan
-              </Button>
-            </CardContent>
-          </Card>
+        {/* Step 4: Results */}
+        {step === 4 && gaitResult && (
+          <GaitResults result={gaitResult} onComplete={handleComplete} />
         )}
       </div>
     </div>
