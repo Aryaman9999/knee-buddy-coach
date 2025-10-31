@@ -124,15 +124,13 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
-      </main>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t-4 border-primary shadow-2xl">
-        <div className="max-w-7xl mx-auto flex justify-around p-4">
+        {/* Navigation Buttons */}
+        <div className="flex gap-4 pb-8">
           <Button 
             variant="default" 
             size="lg" 
-            className="flex-1 mx-2"
+            className="flex-1"
           >
             <Home className="h-8 w-8 mr-2" />
             Dashboard
@@ -140,14 +138,14 @@ const Dashboard = () => {
           <Button 
             variant="outline" 
             size="lg" 
-            className="flex-1 mx-2"
+            className="flex-1"
             onClick={() => navigate("/exercises")}
           >
             <ClipboardList className="h-8 w-8 mr-2" />
             My Exercises
           </Button>
         </div>
-      </nav>
+      </main>
     </div>
   );
 };

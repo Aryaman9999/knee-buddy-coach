@@ -11,6 +11,7 @@ interface ExerciseAvatarProps {
   isPaused: boolean;
   mode: 'demo' | 'live';
   sensorData?: SensorPacket | null;
+  isSensorConnected: boolean;
 }
 
 // Target angles for each exercise (in degrees)
@@ -33,7 +34,7 @@ const exercisePoses: Record<string, "lying" | "sitting"> = {
   "6": "sitting", // Hamstring Curls
 };
 
-const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData }: ExerciseAvatarProps) => {
+const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, isSensorConnected }: ExerciseAvatarProps) => {
   const groupRef = useRef<Group>(null);
   const rightUpperLegRef = useRef<Group>(null);
   const rightKneeRef = useRef<Group>(null);
@@ -53,8 +54,8 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData }: 
   useFrame((state) => {
     if (!groupRef.current || isPaused) return;
 
-    // Live mode: Apply sensor data to joints
-    if (mode === 'live' && sensorData) {
+    // Live mode: Apply sensor data to joints ONLY if connected
+    if (mode === 'live' && sensorData && isSensorConnected) {
       if (!sensorDataMapper.isValidPacket(sensorData)) {
         console.warn('Invalid sensor packet received');
         return;
@@ -93,8 +94,12 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData }: 
       return;
     }
 
-    // Demo mode: Use animated demo
-    // In demo mode, use slower animation speed for better learning
+    // In live mode without sensor connection, don't move at all
+    if (mode === 'live' && !isSensorConnected) {
+      return; // Stay still
+    }
+
+    // Demo mode: Use animated demo with slower speed for better learning
     const animationSpeed = mode === 'demo' ? 0.5 : 1.0;
     const time = state.clock.getElapsedTime() * animationSpeed;
 

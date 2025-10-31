@@ -204,6 +204,7 @@ const ExercisePlayer = () => {
                       isPaused={isPaused}
                       mode={exercisePhase === 'demo' ? 'demo' : 'live'}
                       sensorData={sensorData}
+                      isSensorConnected={isSensorConnected}
                     />
                   </Canvas>
                 </Suspense>
