@@ -14,7 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      gait_tests: {
+        Row: {
+          asymmetry_score: number | null
+          created_at: string | null
+          diagnoses: Json | null
+          id: string
+          lateral_stability_score: number | null
+          left_knee_rom: number | null
+          overall_status: string | null
+          recommended_exercises: Json | null
+          right_knee_rom: number | null
+          sensor_data: Json | null
+          step_count: number | null
+          test_date: string | null
+          test_duration: number | null
+          user_id: string
+        }
+        Insert: {
+          asymmetry_score?: number | null
+          created_at?: string | null
+          diagnoses?: Json | null
+          id?: string
+          lateral_stability_score?: number | null
+          left_knee_rom?: number | null
+          overall_status?: string | null
+          recommended_exercises?: Json | null
+          right_knee_rom?: number | null
+          sensor_data?: Json | null
+          step_count?: number | null
+          test_date?: string | null
+          test_duration?: number | null
+          user_id: string
+        }
+        Update: {
+          asymmetry_score?: number | null
+          created_at?: string | null
+          diagnoses?: Json | null
+          id?: string
+          lateral_stability_score?: number | null
+          left_knee_rom?: number | null
+          overall_status?: string | null
+          recommended_exercises?: Json | null
+          right_knee_rom?: number | null
+          sensor_data?: Json | null
+          step_count?: number | null
+          test_date?: string | null
+          test_duration?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
