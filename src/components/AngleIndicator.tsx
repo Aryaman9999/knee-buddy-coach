@@ -46,7 +46,7 @@ const AngleIndicator = ({ targetAngle, currentAngle, position, showArrows = true
   // Arrow direction (1 = extend, -1 = flex)
   const arrowDirection = currentAngle < targetAngle ? 1 : -1;
 
-  // Pulsing animation for feedback
+  // Pulsing animation for feedback - smooth frame-based animation
   useFrame((state) => {
     if (groupRef.current && Math.abs(targetAngle - currentAngle) < 5) {
       const pulse = Math.sin(state.clock.getElapsedTime() * 2) * 0.02 + 1;
@@ -54,6 +54,12 @@ const AngleIndicator = ({ targetAngle, currentAngle, position, showArrows = true
     } else if (groupRef.current) {
       groupRef.current.scale.setScalar(1);
     }
+  });
+
+  // Use time for smooth arrow animation
+  const arrowAnimRef = useRef(0);
+  useFrame((state) => {
+    arrowAnimRef.current = state.clock.getElapsedTime();
   });
 
   // Encouraging feedback text
@@ -159,11 +165,11 @@ const AngleIndicator = ({ targetAngle, currentAngle, position, showArrows = true
       {/* Smooth animated directional arrows */}
       {showArrows && Math.abs(targetAngle - currentAngle) > 5 && (
         <group>
-          {/* Arrow 1 with gentle pulse */}
+          {/* Arrow 1 with gentle pulse - using frame-based animation */}
           <mesh 
             position={[
               0.55, 
-              -0.5 * arrowDirection + Math.sin(Date.now() * 0.003) * 0.05, 
+              -0.5 * arrowDirection + Math.sin(arrowAnimRef.current * 3) * 0.05, 
               0
             ]}
             rotation={[0, 0, arrowDirection > 0 ? 0 : Math.PI]}
@@ -182,7 +188,7 @@ const AngleIndicator = ({ targetAngle, currentAngle, position, showArrows = true
           <mesh 
             position={[
               0.68, 
-              -0.5 * arrowDirection + Math.sin(Date.now() * 0.003 + Math.PI / 2) * 0.05, 
+              -0.5 * arrowDirection + Math.sin(arrowAnimRef.current * 3 + Math.PI / 2) * 0.05, 
               0
             ]}
             rotation={[0, 0, arrowDirection > 0 ? 0 : Math.PI]}

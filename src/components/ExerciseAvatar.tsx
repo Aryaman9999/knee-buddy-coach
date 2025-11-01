@@ -63,28 +63,40 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
 
       const processed = sensorDataMapper.processSensorPacket(sensorData, true);
 
-      // Apply quaternions to leg joints
+      // 1. Apply Pelvis (Base) Orientation to entire body
+      const pelvisQ = sensorDataMapper.toThreeQuaternion(processed.sensors.pelvis);
+      groupRef.current.quaternion.copy(pelvisQ);
+
+      // 2. Apply Thigh Orientations (these are absolute orientations)
       if (rightUpperLegRef.current) {
         const thighQ = sensorDataMapper.toThreeQuaternion(processed.sensors.right_thigh);
         rightUpperLegRef.current.quaternion.copy(thighQ);
       }
-
-      if (rightKneeRef.current) {
-        const shinQ = sensorDataMapper.toThreeQuaternion(processed.sensors.right_shin);
-        rightKneeRef.current.quaternion.copy(shinQ);
-      }
-
       if (leftUpperLegRef.current) {
         const thighQ = sensorDataMapper.toThreeQuaternion(processed.sensors.left_thigh);
         leftUpperLegRef.current.quaternion.copy(thighQ);
       }
 
-      if (leftKneeRef.current) {
-        const shinQ = sensorDataMapper.toThreeQuaternion(processed.sensors.left_shin);
-        leftKneeRef.current.quaternion.copy(shinQ);
+      // 3. Apply RELATIVE Knee Orientations
+      // Calculate shin rotation relative to thigh to avoid broken leg joints
+      if (rightKneeRef.current) {
+        const thighQ = sensorDataMapper.toThreeQuaternion(processed.sensors.right_thigh);
+        const shinQ = sensorDataMapper.toThreeQuaternion(processed.sensors.right_shin);
+        
+        // Calculate relative rotation: shin relative to thigh
+        // relative = thigh_inverse * shin
+        const relativeShinQ = thighQ.clone().invert().multiply(shinQ);
+        rightKneeRef.current.quaternion.copy(relativeShinQ);
       }
 
-      // Calculate and update knee angle
+      if (leftKneeRef.current) {
+        const thighQ = sensorDataMapper.toThreeQuaternion(processed.sensors.left_thigh);
+        const shinQ = sensorDataMapper.toThreeQuaternion(processed.sensors.left_shin);
+        const relativeShinQ = thighQ.clone().invert().multiply(shinQ);
+        leftKneeRef.current.quaternion.copy(relativeShinQ);
+      }
+
+      // 4. Calculate Angle for Indicator
       const kneeAngle = sensorDataMapper.calculateJointAngle(
         processed.sensors.right_thigh,
         processed.sensors.right_shin
@@ -255,6 +267,14 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
                 />
               </mesh>
               
+              {/* Angle Indicator - attached to knee joint */}
+              <AngleIndicator
+                targetAngle={exerciseTargetAngles[exerciseId] || 90}
+                currentAngle={currentKneeAngle}
+                position={new Vector3(0.3, 0, 0.3)}
+                showArrows={true}
+              />
+              
               {/* Lower Leg (Shin) - warm beige */}
               <group position={[0, -0.25, 0]}>
                 <mesh>
@@ -357,13 +377,6 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
           />
         </mesh>
 
-        {/* Angle Indicator at right knee */}
-        <AngleIndicator
-          targetAngle={exerciseTargetAngles[exerciseId] || 90}
-          currentAngle={currentKneeAngle}
-          position={new Vector3(0.15, isSitting ? -0.125 : -0.625, 0.3)}
-          showArrows={true}
-        />
       </group>
     </>
   );

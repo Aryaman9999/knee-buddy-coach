@@ -11,18 +11,29 @@ interface SensorConnectionProps {
 }
 
 const SensorConnection = ({ onConnectionChange, showDetails = true }: SensorConnectionProps) => {
-  const [connectionState, setConnectionState] = useState<BluetoothConnectionState>({
+  const [connectionState, setConnectionState] = useState<BluetoothConnectionState & { battery?: number }>({
     isConnected: false,
     isConnecting: false,
   });
 
   useEffect(() => {
-    const unsubscribe = bluetoothService.onStateChange((state) => {
+    const unsubscribeState = bluetoothService.onStateChange((state) => {
       setConnectionState(state);
       onConnectionChange?.(state.isConnected);
     });
 
-    return unsubscribe;
+    // Subscribe to sensor data to get battery level
+    const unsubscribeData = bluetoothService.onDataReceived((packet) => {
+      setConnectionState(prev => ({
+        ...prev,
+        battery: packet.battery
+      }));
+    });
+
+    return () => {
+      unsubscribeState();
+      unsubscribeData();
+    };
   }, [onConnectionChange]);
 
   const handleConnect = async () => {
@@ -78,11 +89,11 @@ const SensorConnection = ({ onConnectionChange, showDetails = true }: SensorConn
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1">
                 <Battery className="h-4 w-4" />
-                <span className="text-sm">100%</span>
+                <span className="text-sm">{connectionState.battery ?? 0}%</span>
               </div>
               <div className="flex items-center gap-1">
                 <Signal className="h-4 w-4" />
-                <span className="text-sm">Strong</span>
+                <span className="text-sm">{connectionState.signalStrength ? `${connectionState.signalStrength}%` : 'Strong'}</span>
               </div>
             </div>
           )}

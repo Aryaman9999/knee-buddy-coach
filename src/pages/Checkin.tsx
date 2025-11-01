@@ -108,9 +108,13 @@ const Checkin = () => {
       }, 1000);
       return () => clearTimeout(timer);
     } else if (gaitPhase === 'calibrate' && calibrationCountdown === 0) {
-      // Capture calibration
+      // Capture calibration using actual sensor data
       if (sensorData) {
         gaitAnalyzer.reset();
+        // Apply calibration offsets from T-pose
+        import('@/utils/sensorDataMapper').then(({ sensorDataMapper }) => {
+          sensorDataMapper.calibrate(sensorData);
+        });
         toast({
           title: "Calibration Complete",
           description: "Start walking at a comfortable pace",

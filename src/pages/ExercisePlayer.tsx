@@ -34,17 +34,65 @@ const ExercisePlayer = () => {
   const [demoTimer, setDemoTimer] = useState(10);
   const [sensorData, setSensorData] = useState<SensorPacket | null>(null);
   const [isSensorConnected, setIsSensorConnected] = useState(false);
+  const [lastKneeAngle, setLastKneeAngle] = useState(0);
+  const [repState, setRepState] = useState<'flexed' | 'extended'>('extended');
 
   const exercise = id ? exerciseData[id] : null;
 
-  // Subscribe to sensor data
+  // Subscribe to sensor data and detect reps
   useEffect(() => {
     const unsubscribe = bluetoothService.onDataReceived((data) => {
       setSensorData(data);
+      
+      // Only count reps during live phase when sensor is connected
+      if (exercisePhase === 'live' && isSensorConnected && exercise) {
+        import('@/utils/sensorDataMapper').then(({ sensorDataMapper }) => {
+          if (!sensorDataMapper.isValidPacket(data)) return;
+          
+          const processed = sensorDataMapper.processSensorPacket(data, true);
+          const kneeAngle = sensorDataMapper.calculateJointAngle(
+            processed.sensors.right_thigh,
+            processed.sensors.right_shin
+          );
+          
+          // Detect rep completion based on angle changes
+          // Flexed: angle < 60 degrees, Extended: angle > 120 degrees
+          if (repState === 'extended' && kneeAngle < 60) {
+            setRepState('flexed');
+          } else if (repState === 'flexed' && kneeAngle > 120) {
+            setRepState('extended');
+            // Count a rep!
+            setCurrentRep((prev) => {
+              if (prev < exercise.reps) {
+                const feedbackMessages = [
+                  "Great form!",
+                  "Keep it up!",
+                  "Excellent movement!",
+                  "You're doing great!",
+                  "Perfect technique!",
+                ];
+                setFeedback(feedbackMessages[Math.floor(Math.random() * feedbackMessages.length)]);
+                return prev + 1;
+              } else {
+                if (currentSet < exercise.sets) {
+                  setCurrentSet(currentSet + 1);
+                  return 0;
+                } else {
+                  setExercisePhase('complete');
+                  setFeedback("Exercise complete! Excellent work!");
+                }
+                return prev;
+              }
+            });
+          }
+          
+          setLastKneeAngle(kneeAngle);
+        });
+      }
     });
 
     return unsubscribe;
-  }, []);
+  }, [exercisePhase, isSensorConnected, repState, currentSet, exercise]);
 
   // Demo phase timer
   useEffect(() => {
@@ -82,9 +130,9 @@ const ExercisePlayer = () => {
     return () => clearInterval(interval);
   }, [exercisePhase]);
 
-  // Exercise rep counter (only runs in live phase)
+  // Fallback rep counter only if sensor is NOT connected
   useEffect(() => {
-    if (!exercise || isPaused || exercisePhase !== 'live') return;
+    if (!exercise || isPaused || exercisePhase !== 'live' || isSensorConnected) return;
 
     const feedbackMessages = [
       "Great form!",
@@ -114,7 +162,7 @@ const ExercisePlayer = () => {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [exercise, currentSet, isPaused, exercisePhase]);
+  }, [exercise, currentSet, isPaused, exercisePhase, isSensorConnected]);
 
   if (!exercise) {
     return (
