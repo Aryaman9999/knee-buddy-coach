@@ -65,12 +65,78 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      weekly_checkins: {
+        Row: {
+          checkin_date: string
+          created_at: string | null
+          gait_test_id: string | null
+          id: string
+          next_checkin_date: string
+          pain_score: number | null
+          recommended_exercise_id: string | null
+          stiffness_score: number | null
+          user_id: string
+        }
+        Insert: {
+          checkin_date?: string
+          created_at?: string | null
+          gait_test_id?: string | null
+          id?: string
+          next_checkin_date: string
+          pain_score?: number | null
+          recommended_exercise_id?: string | null
+          stiffness_score?: number | null
+          user_id: string
+        }
+        Update: {
+          checkin_date?: string
+          created_at?: string | null
+          gait_test_id?: string | null
+          id?: string
+          next_checkin_date?: string
+          pain_score?: number | null
+          recommended_exercise_id?: string | null
+          stiffness_score?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_checkins_gait_test_id_fkey"
+            columns: ["gait_test_id"]
+            isOneToOne: false
+            referencedRelation: "gait_tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_checkin: { Args: { _user_id: string }; Returns: boolean }
+      days_until_checkin: { Args: { _user_id: string }; Returns: number }
     }
     Enums: {
       [_ in never]: never

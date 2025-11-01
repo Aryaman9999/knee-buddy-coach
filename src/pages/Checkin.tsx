@@ -13,6 +13,7 @@ import GaitResults from "@/components/GaitResults";
 import { Canvas } from "@react-three/fiber";
 import { Suspense } from "react";
 import ExerciseAvatar from "@/components/ExerciseAvatar";
+import { supabase } from "@/integrations/supabase/client";
 
 const safetyQuestions = [
   "Are you experiencing severe, constant knee pain that doesn't improve with rest?",
@@ -157,19 +158,85 @@ const Checkin = () => {
     }
   };
 
-  const handleCompleteTest = () => {
+  const handleCompleteTest = async () => {
     setGaitPhase('analyzing');
     
-    setTimeout(() => {
+    setTimeout(async () => {
       const result = gaitAnalyzer.analyze();
       setGaitResult(result);
-      setGaitPhase('results');
-      setStep(4);
       
-      toast({
-        title: "Analysis Complete",
-        description: `${result.diagnoses.length} findings detected`,
-      });
+      // Save gait test to database
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          toast({
+            title: "Error",
+            description: "You must be logged in to save results",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const { data: gaitTest, error: gaitError } = await supabase
+          .from('gait_tests')
+          .insert([{
+            user_id: session.user.id,
+            right_knee_rom: result.metrics.rightKneeROM,
+            left_knee_rom: result.metrics.leftKneeROM,
+            asymmetry_score: result.metrics.asymmetryScore,
+            lateral_stability_score: result.metrics.lateralStabilityScore,
+            step_count: result.metrics.stepCount,
+            test_duration: result.metrics.testDuration,
+            diagnoses: result.diagnoses as any,
+            recommended_exercises: result.recommendations as any,
+            overall_status: result.overallStatus,
+          }])
+          .select()
+          .single();
+
+        if (gaitError) throw gaitError;
+
+        // Calculate scores from questionnaire (0-4 scale to 0-10 scale)
+        const avgPain = Math.round((questionnaireAnswers[0] / 4) * 10);
+        const avgStiffness = Math.round((questionnaireAnswers[1] / 4) * 10);
+
+        // Get top recommended exercise
+        const recommendedExercise = result.recommendations.length > 0 
+          ? result.recommendations[0].exerciseId 
+          : null;
+
+        // Save weekly check-in
+        const nextCheckinDate = new Date();
+        nextCheckinDate.setDate(nextCheckinDate.getDate() + 7);
+
+        const { error: checkinError } = await supabase
+          .from('weekly_checkins')
+          .insert({
+            user_id: session.user.id,
+            pain_score: avgPain,
+            stiffness_score: avgStiffness,
+            gait_test_id: gaitTest.id,
+            recommended_exercise_id: recommendedExercise,
+            next_checkin_date: nextCheckinDate.toISOString(),
+          });
+
+        if (checkinError) throw checkinError;
+
+        setGaitPhase('results');
+        setStep(4);
+        
+        toast({
+          title: "Analysis Complete",
+          description: `${result.diagnoses.length} findings detected`,
+        });
+      } catch (error) {
+        console.error('Error saving results:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save check-in data",
+          variant: "destructive",
+        });
+      }
     }, 2000);
   };
 
@@ -178,7 +245,7 @@ const Checkin = () => {
       title: "Check-in Complete!",
       description: "Your exercise plan has been updated.",
     });
-    navigate("/exercises");
+    navigate("/dashboard");
   };
 
   return (
