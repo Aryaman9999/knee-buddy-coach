@@ -10,15 +10,8 @@ import { bluetoothService } from "@/services/bluetoothService";
 import { SensorPacket } from "@/types/sensorData";
 import { Suspense } from "react";
 import ExerciseAvatar from "@/components/ExerciseAvatar";
-
-const exerciseData: Record<string, { name: string; sets: number; reps: number; leg: "right" | "left" | "bilateral" }> = {
-  "1": { name: "Heel Slides", sets: 3, reps: 15, leg: "right" },
-  "2": { name: "Quad Sets", sets: 3, reps: 20, leg: "bilateral" },
-  "3": { name: "Straight Leg Raises", sets: 3, reps: 12, leg: "right" },
-  "4": { name: "Ankle Pumps", sets: 3, reps: 25, leg: "bilateral" },
-  "5": { name: "Short Arc Quads", sets: 3, reps: 15, leg: "right" },
-  "6": { name: "Hamstring Curls", sets: 3, reps: 12, leg: "right" },
-};
+import { exercises as exerciseList } from "./Exercises";
+import { exerciseDefinitions } from "@/components/ExerciseAvatar";
 
 type ExercisePhase = 'demo' | 'countdown' | 'live' | 'complete';
 
@@ -37,7 +30,7 @@ const ExercisePlayer = () => {
   const [lastKneeAngle, setLastKneeAngle] = useState(0);
   const [repState, setRepState] = useState<'flexed' | 'extended'>('extended');
 
-  const exercise = id ? exerciseData[id] : null;
+  const exercise = id ? exerciseList.find(ex => ex.id === parseInt(id)) : null;
 
   // Subscribe to sensor data and detect reps
   useEffect(() => {
@@ -58,17 +51,7 @@ const ExercisePlayer = () => {
           
           const kneeAngle = sensorDataMapper.calculateJointAngle(thighSensor, shinSensor);
           
-          // Dynamic thresholds based on exercise target angle
-          const exerciseTargetAngles: Record<string, number> = {
-            "1": 90,  // Heel Slides
-            "2": 30,  // Quad Sets
-            "3": 45,  // Straight Leg Raises
-            "4": 20,  // Ankle Pumps
-            "5": 60,  // Short Arc Quads
-            "6": 90,  // Hamstring Curls
-          };
-          
-          const targetAngle = exerciseTargetAngles[id] || 90;
+          const targetAngle = exerciseDefinitions[id]?.targetAngle || 90;
           // Flexed threshold: 30% of target angle
           // Extended threshold: 150% of target angle or target + 30°
           const flexedThreshold = targetAngle * 0.3;
@@ -244,7 +227,7 @@ const ExercisePlayer = () => {
                       mode={exercisePhase === 'demo' ? 'demo' : 'live'}
                       sensorData={sensorData}
                       isSensorConnected={isSensorConnected}
-                      trackedLeg={exercise.leg}
+                      trackedLeg={exercise.leg as "right" | "left" | "bilateral"}
                     />
                   </Canvas>
                 </Suspense>

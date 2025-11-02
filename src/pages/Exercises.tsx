@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Home, ClipboardList, ArrowRight } from "lucide-react";
 
-const exercises = [
+export const exercises = [
   { id: 1, name: "Heel Slides", sets: 3, reps: 15, description: "Strengthen your hamstrings and improve knee flexibility", leg: "right" },
   { id: 2, name: "Quad Sets", sets: 3, reps: 20, description: "Build strength in your quadriceps muscles", leg: "bilateral" },
   { id: 3, name: "Straight Leg Raises", sets: 3, reps: 12, description: "Strengthen your quadriceps without bending your knee", leg: "right" },

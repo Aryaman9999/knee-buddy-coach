@@ -5,18 +5,8 @@ import { SensorPacket } from "@/types/sensorData";
 import { sensorDataMapper } from "@/utils/sensorDataMapper";
 import AngleIndicator from "./AngleIndicator";
 
-interface ExerciseAvatarProps {
-  exerciseId: string;
-  currentRep: number;
-  isPaused: boolean;
-  mode: 'demo' | 'live';
-  sensorData?: SensorPacket | null;
-  isSensorConnected: boolean;
-  trackedLeg: "right" | "left" | "bilateral";
-}
-
-// All exercise data in one place
-const exerciseDefinitions: Record<string, {
+// All exercise data in one place - exported for use in ExercisePlayer
+export const exerciseDefinitions: Record<string, {
   targetAngle: number;
   startingPose: 'standing' | 'sitting' | 'lying';
 }> = {
@@ -28,6 +18,16 @@ const exerciseDefinitions: Record<string, {
   "6": { targetAngle: 90, startingPose: 'lying' },   // Hamstring Curls (Prone/Supine)
 };
 
+interface ExerciseAvatarProps {
+  exerciseId: string;
+  currentRep: number;
+  isPaused: boolean;
+  mode: 'demo' | 'live';
+  sensorData?: SensorPacket | null;
+  isSensorConnected: boolean;
+  trackedLeg: "right" | "left" | "bilateral";
+}
+
 const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, isSensorConnected, trackedLeg }: ExerciseAvatarProps) => {
   const groupRef = useRef<Group>(null);
   const rightUpperLegRef = useRef<Group>(null);
@@ -35,6 +35,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
   const leftUpperLegRef = useRef<Group>(null);
   const leftKneeRef = useRef<Group>(null);
   const angleIndicatorRef = useRef<Group>(null);
+  const pelvisMeshRef = useRef<Mesh>(null);
 
   const [currentKneeAngle, setCurrentKneeAngle] = useState(0);
   const [kneeWorldPosition, setKneeWorldPosition] = useState(new Vector3(0.3, 0, 0.3));
@@ -65,15 +66,15 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
 
       const processed = sensorDataMapper.processSensorPacket(sensorData, true);
 
-      // 1. Apply Pelvis (Base) Orientation to entire body
+      // 1. Apply Pelvis Orientation to the pelvis mesh
       const pelvisQ = sensorDataMapper.toThreeQuaternion(processed.sensors.pelvis);
-      groupRef.current.quaternion.copy(pelvisQ);
+      if (pelvisMeshRef.current) {
+        pelvisMeshRef.current.quaternion.copy(pelvisQ);
+      }
 
       // 2. Apply RELATIVE Thigh Orientations (relative to pelvis)
-      // This fixes the "double rotation" kinematic flaw
       if (rightUpperLegRef.current) {
         const thighQ = sensorDataMapper.toThreeQuaternion(processed.sensors.right_thigh);
-        // Calculate thigh rotation relative to pelvis
         const relativeThighQ = pelvisQ.clone().invert().multiply(thighQ);
         rightUpperLegRef.current.quaternion.copy(relativeThighQ);
       }
@@ -291,9 +292,9 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         />
       </mesh>
 
-      <group ref={groupRef} position={[0, 0, 0]}>
+      <group ref={groupRef} position={[0, 0, 0]} rotation={pelvisRotation}>
         {/* Lower Back / Pelvis - soft teal/blue */}
-        <mesh position={pelvisPosition} rotation={pelvisRotation}>
+        <mesh ref={pelvisMeshRef} position={pelvisPosition}>
           <boxGeometry args={[0.4, 0.25, 0.2]} />
           <meshStandardMaterial 
             color="#7eb3d4" 
