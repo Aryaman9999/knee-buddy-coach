@@ -45,7 +45,7 @@ const ExercisePlayer = () => {
       setSensorData(data);
       
       // Only count reps during live phase when sensor is connected
-      if (exercisePhase === 'live' && isSensorConnected && exercise) {
+      if (exercisePhase === 'live' && isSensorConnected && exercise && id) {
         import('@/utils/sensorDataMapper').then(({ sensorDataMapper }) => {
           if (!sensorDataMapper.isValidPacket(data)) return;
           
@@ -55,11 +55,26 @@ const ExercisePlayer = () => {
             processed.sensors.right_shin
           );
           
-          // Detect rep completion based on angle changes
-          // Flexed: angle < 60 degrees, Extended: angle > 120 degrees
-          if (repState === 'extended' && kneeAngle < 60) {
+          // Dynamic thresholds based on exercise target angle
+          const exerciseTargetAngles: Record<string, number> = {
+            "1": 90,  // Heel Slides
+            "2": 30,  // Quad Sets
+            "3": 45,  // Straight Leg Raises
+            "4": 20,  // Ankle Pumps
+            "5": 60,  // Short Arc Quads
+            "6": 90,  // Hamstring Curls
+          };
+          
+          const targetAngle = exerciseTargetAngles[id] || 90;
+          // Flexed threshold: 30% of target angle
+          // Extended threshold: 150% of target angle or target + 30°
+          const flexedThreshold = targetAngle * 0.3;
+          const extendedThreshold = Math.min(targetAngle + 30, targetAngle * 1.5);
+          
+          // Detect rep completion based on dynamic angle thresholds
+          if (repState === 'extended' && kneeAngle > extendedThreshold) {
             setRepState('flexed');
-          } else if (repState === 'flexed' && kneeAngle > 120) {
+          } else if (repState === 'flexed' && kneeAngle < flexedThreshold) {
             setRepState('extended');
             // Count a rep!
             setCurrentRep((prev) => {
@@ -134,12 +149,13 @@ const ExercisePlayer = () => {
   useEffect(() => {
     if (!exercise || isPaused || exercisePhase !== 'live' || isSensorConnected) return;
 
+    // Generic feedback without false claims about form
     const feedbackMessages = [
-      "Great form!",
-      "Keep it up!",
-      "Excellent movement!",
-      "You're doing great!",
-      "Perfect technique!",
+      "Complete the movement",
+      "Continue the exercise",
+      "Keep moving",
+      "Next rep",
+      "Stay focused",
     ];
 
     const interval = setInterval(() => {
@@ -154,7 +170,7 @@ const ExercisePlayer = () => {
             } else {
               clearInterval(interval);
               setExercisePhase('complete');
-              setFeedback("Exercise complete! Excellent work!");
+              setFeedback("Exercise complete!");
             }
             return prev;
         }

@@ -98,9 +98,15 @@ export class GaitAnalyzer {
       leftAngles.push(leftAngle);
     });
 
+    // Calculate ROM for each leg
+    const rightROM = Math.max(...rightAngles) - Math.min(...rightAngles);
+    const leftROM = Math.max(...leftAngles) - Math.min(...leftAngles);
+    
+    // Asymmetry score based on ROM difference (better metric than average angle)
+    const score = Math.abs(rightROM - leftROM);
+    
     const avgRight = rightAngles.reduce((a, b) => a + b, 0) / rightAngles.length;
     const avgLeft = leftAngles.reduce((a, b) => a + b, 0) / leftAngles.length;
-    const score = Math.abs(avgRight - avgLeft);
 
     return { score, avgRight, avgLeft };
   }

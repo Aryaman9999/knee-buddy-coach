@@ -46,9 +46,15 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
   const animationSpeed = 2;
 
   // Helper to convert quaternion to angle in degrees
+  // Handles multiple axes to avoid sensor mounting orientation issues
   const quaternionToAngle = (quaternion: Quaternion): number => {
     const euler = new Euler().setFromQuaternion(quaternion);
-    return Math.abs((euler.x * 180) / Math.PI);
+    const xAngle = Math.abs((euler.x * 180) / Math.PI);
+    const yAngle = Math.abs((euler.y * 180) / Math.PI);
+    const zAngle = Math.abs((euler.z * 180) / Math.PI);
+    
+    // Return the largest angle (primary flexion axis)
+    return Math.max(xAngle, yAngle, zAngle);
   };
 
   useFrame((state) => {
@@ -67,17 +73,21 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
       const pelvisQ = sensorDataMapper.toThreeQuaternion(processed.sensors.pelvis);
       groupRef.current.quaternion.copy(pelvisQ);
 
-      // 2. Apply Thigh Orientations (these are absolute orientations)
+      // 2. Apply RELATIVE Thigh Orientations (relative to pelvis)
+      // This fixes the "double rotation" kinematic flaw
       if (rightUpperLegRef.current) {
         const thighQ = sensorDataMapper.toThreeQuaternion(processed.sensors.right_thigh);
-        rightUpperLegRef.current.quaternion.copy(thighQ);
+        // Calculate thigh rotation relative to pelvis
+        const relativeThighQ = pelvisQ.clone().invert().multiply(thighQ);
+        rightUpperLegRef.current.quaternion.copy(relativeThighQ);
       }
       if (leftUpperLegRef.current) {
         const thighQ = sensorDataMapper.toThreeQuaternion(processed.sensors.left_thigh);
-        leftUpperLegRef.current.quaternion.copy(thighQ);
+        const relativeThighQ = pelvisQ.clone().invert().multiply(thighQ);
+        leftUpperLegRef.current.quaternion.copy(relativeThighQ);
       }
 
-      // 3. Apply RELATIVE Knee Orientations
+      // 3. Apply RELATIVE Knee Orientations (relative to thigh)
       // Calculate shin rotation relative to thigh to avoid broken leg joints
       if (rightKneeRef.current) {
         const thighQ = sensorDataMapper.toThreeQuaternion(processed.sensors.right_thigh);

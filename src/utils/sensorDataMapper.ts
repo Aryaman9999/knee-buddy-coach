@@ -31,7 +31,7 @@ export class SensorDataMapper {
     };
   }
 
-  // Smooth quaternion using moving average
+  // Smooth quaternion using NLERP (Normalized Linear Interpolation)
   smoothQuaternion(q: Quaternion, sensorId: string): Quaternion {
     let buffer = this.smoothingBuffer.get(sensorId);
     if (!buffer) {
@@ -44,25 +44,36 @@ export class SensorDataMapper {
       buffer.shift();
     }
 
-    // Average quaternions (simplified - should use slerp for accuracy)
-    const avg = {
-      qw: buffer.reduce((sum, q) => sum + q.qw, 0) / buffer.length,
-      qx: buffer.reduce((sum, q) => sum + q.qx, 0) / buffer.length,
-      qy: buffer.reduce((sum, q) => sum + q.qy, 0) / buffer.length,
-      qz: buffer.reduce((sum, q) => sum + q.qz, 0) / buffer.length
-    };
+    if (buffer.length === 1) return buffer[0];
 
-    // Normalize
-    const mag = Math.sqrt(avg.qw * avg.qw + avg.qx * avg.qx + avg.qy * avg.qy + avg.qz * avg.qz);
+    // Use NLERP for proper quaternion averaging
+    // Start with the first quaternion
+    let result = this.toThreeQuaternion(buffer[0]);
+    
+    // Interpolate with subsequent quaternions
+    for (let i = 1; i < buffer.length; i++) {
+      const qi = this.toThreeQuaternion(buffer[i]);
+      const weight = 1 / (i + 1);
+      
+      // Ensure shortest path interpolation
+      if (result.dot(qi) < 0) {
+        qi.set(-qi.x, -qi.y, -qi.z, -qi.w);
+      }
+      
+      // Linear interpolation
+      result.slerp(qi, weight);
+    }
+
     return {
-      qw: avg.qw / mag,
-      qx: avg.qx / mag,
-      qy: avg.qy / mag,
-      qz: avg.qz / mag
+      qw: result.w,
+      qx: result.x,
+      qy: result.y,
+      qz: result.z
     };
   }
 
   // Calculate angle between two quaternions (for joint angles)
+  // Handles multiple axes to avoid sensor mounting orientation issues
   calculateJointAngle(q1: Quaternion, q2: Quaternion): number {
     const thigh = this.toThreeQuaternion(q1);
     const shin = this.toThreeQuaternion(q2);
@@ -70,11 +81,17 @@ export class SensorDataMapper {
     // Calculate relative rotation
     const relative = thigh.clone().invert().multiply(shin);
     
-    // Convert to Euler and extract X rotation (knee flexion/extension)
+    // Convert to Euler angles
     const euler = new Euler().setFromQuaternion(relative);
-    const angleInDegrees = Math.abs((euler.x * 180) / Math.PI);
     
-    return angleInDegrees;
+    // Check all three axes and use the one with maximum rotation
+    // This handles different sensor mounting orientations
+    const xAngle = Math.abs((euler.x * 180) / Math.PI);
+    const yAngle = Math.abs((euler.y * 180) / Math.PI);
+    const zAngle = Math.abs((euler.z * 180) / Math.PI);
+    
+    // Return the largest angle (primary flexion axis)
+    return Math.max(xAngle, yAngle, zAngle);
   }
 
   // Process sensor packet with calibration and smoothing
