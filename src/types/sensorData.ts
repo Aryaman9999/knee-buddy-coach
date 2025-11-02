@@ -27,6 +27,8 @@ export interface SensorPacket {
     left_thigh: Quaternion;
     left_shin: Quaternion;
   };
+  left_wt: number;  // Left heel weight sensor (0-100)
+  right_wt: number; // Right heel weight sensor (0-100)
   battery: number; // 0-100
   status: 'ok' | 'warning' | 'error';
 }

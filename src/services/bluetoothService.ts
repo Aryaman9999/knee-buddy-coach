@@ -213,6 +213,8 @@ class BluetoothService {
           left_thigh: this.parseQuaternion(rawData.sens4),
           left_shin: this.parseQuaternion(rawData.sens5),
         },
+        left_wt: rawData.left_wt || 0,
+        right_wt: rawData.right_wt || 0,
         battery: rawData.battery || 100,
         status: rawData.status || 'ok'
       };

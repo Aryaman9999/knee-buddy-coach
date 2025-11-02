@@ -40,8 +40,10 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
   const rightKneeRef = useRef<Group>(null);
   const leftUpperLegRef = useRef<Group>(null);
   const leftKneeRef = useRef<Group>(null);
+  const angleIndicatorRef = useRef<Group>(null);
 
   const [currentKneeAngle, setCurrentKneeAngle] = useState(0);
+  const [kneeWorldPosition, setKneeWorldPosition] = useState(new Vector3(0.3, 0, 0.3));
 
   const animationSpeed = 2;
 
@@ -112,6 +114,13 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         processed.sensors.right_shin
       );
       setCurrentKneeAngle(kneeAngle);
+      
+      // 5. Update indicator world position to track knee
+      if (rightKneeRef.current) {
+        const worldPos = new Vector3();
+        rightKneeRef.current.getWorldPosition(worldPos);
+        setKneeWorldPosition(worldPos.clone().add(new Vector3(0.3, 0, 0.3)));
+      }
       
       return;
     }
@@ -188,6 +197,11 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
     if (rightKneeRef.current) {
       const angle = quaternionToAngle(rightKneeRef.current.quaternion);
       setCurrentKneeAngle(angle);
+      
+      // Update indicator position to follow knee in demo mode
+      const worldPos = new Vector3();
+      rightKneeRef.current.getWorldPosition(worldPos);
+      setKneeWorldPosition(worldPos.clone().add(new Vector3(0.3, 0, 0.3)));
     }
   });
 
@@ -276,14 +290,6 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
                   opacity={0.4}
                 />
               </mesh>
-              
-              {/* Angle Indicator - attached to knee joint */}
-              <AngleIndicator
-                targetAngle={exerciseTargetAngles[exerciseId] || 90}
-                currentAngle={currentKneeAngle}
-                position={new Vector3(0.3, 0, 0.3)}
-                showArrows={true}
-              />
               
               {/* Lower Leg (Shin) - warm beige */}
               <group position={[0, -0.25, 0]}>
@@ -387,6 +393,16 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
           />
         </mesh>
 
+      </group>
+      
+      {/* Angle Indicator - in world space, tracks knee position */}
+      <group ref={angleIndicatorRef} position={kneeWorldPosition}>
+        <AngleIndicator
+          targetAngle={exerciseTargetAngles[exerciseId] || 90}
+          currentAngle={currentKneeAngle}
+          position={new Vector3(0, 0, 0)}
+          showArrows={true}
+        />
       </group>
     </>
   );

@@ -3,10 +3,13 @@ export interface GaitMetrics {
   leftKneeROM: number;
   asymmetryScore: number;
   lateralStabilityScore: number;
+  weightDistributionScore: number; // New metric for weight imbalance
   stepCount: number;
   testDuration: number;
   averageRightKnee: number;
   averageLeftKnee: number;
+  averageRightWeight: number; // Average weight on right heel
+  averageLeftWeight: number;  // Average weight on left heel
 }
 
 export type DiagnosisType = 
@@ -14,6 +17,7 @@ export type DiagnosisType =
   | 'LIMITED_ROM_LEFT' 
   | 'ASYMMETRIC_GAIT' 
   | 'UNSTABLE_KNEE'
+  | 'WEIGHT_IMBALANCE'
   | 'NORMAL';
 
 export type SeverityLevel = 'normal' | 'mild' | 'moderate' | 'severe';

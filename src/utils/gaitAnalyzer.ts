@@ -17,18 +17,22 @@ const ASYMMETRY_THRESHOLD_MILD = 10; // degrees
 const ASYMMETRY_THRESHOLD_MODERATE = 15; // degrees
 const LATERAL_STABILITY_THRESHOLD = 0.25; // radians std dev
 const STEP_DETECTION_THRESHOLD = 0.15; // radians for pelvis pitch change
+const WEIGHT_IMBALANCE_THRESHOLD_MILD = 15; // % difference in weight distribution
+const WEIGHT_IMBALANCE_THRESHOLD_MODERATE = 25; // % difference in weight distribution
 
 export class GaitAnalyzer {
   private sensorHistory: SensorPacket[] = [];
   private startTime: number = 0;
   private lastPelvisPitch: number = 0;
   private stepCount: number = 0;
+  private weightHistory: { left: number[]; right: number[] } = { left: [], right: [] };
 
   reset() {
     this.sensorHistory = [];
     this.startTime = Date.now();
     this.stepCount = 0;
     this.lastPelvisPitch = 0;
+    this.weightHistory = { left: [], right: [] };
   }
 
   collectGaitData(packet: SensorPacket): number {
@@ -37,6 +41,10 @@ export class GaitAnalyzer {
     }
 
     this.sensorHistory.push(packet);
+    
+    // Collect weight data with smoothing
+    this.weightHistory.left.push(packet.left_wt);
+    this.weightHistory.right.push(packet.right_wt);
 
     // Detect steps from pelvis movement
     const pelvisQ = sensorDataMapper.toThreeQuaternion(packet.sensors.pelvis);
@@ -138,6 +146,40 @@ export class GaitAnalyzer {
     return stdDev;
   }
 
+  analyzeWeightDistribution(): { score: number; avgRight: number; avgLeft: number } {
+    if (this.weightHistory.left.length === 0 || this.weightHistory.right.length === 0) {
+      return { score: 0, avgRight: 0, avgLeft: 0 };
+    }
+
+    // Apply moving average filter to smooth weight data
+    const smoothWindow = 5;
+    const smoothWeight = (data: number[]): number[] => {
+      const smoothed: number[] = [];
+      for (let i = 0; i < data.length; i++) {
+        const start = Math.max(0, i - smoothWindow + 1);
+        const window = data.slice(start, i + 1);
+        const avg = window.reduce((a, b) => a + b, 0) / window.length;
+        smoothed.push(avg);
+      }
+      return smoothed;
+    };
+
+    const smoothedLeft = smoothWeight(this.weightHistory.left);
+    const smoothedRight = smoothWeight(this.weightHistory.right);
+
+    // Calculate average weight distribution
+    const avgLeft = smoothedLeft.reduce((a, b) => a + b, 0) / smoothedLeft.length;
+    const avgRight = smoothedRight.reduce((a, b) => a + b, 0) / smoothedRight.length;
+
+    // Calculate percentage difference
+    const totalAvg = avgLeft + avgRight;
+    const leftPercent = (avgLeft / totalAvg) * 100;
+    const rightPercent = (avgRight / totalAvg) * 100;
+    const score = Math.abs(leftPercent - rightPercent);
+
+    return { score, avgRight, avgLeft };
+  }
+
   generateDiagnosis(metrics: GaitMetrics): GaitDiagnosis[] {
     const diagnoses: GaitDiagnosis[] = [];
 
@@ -203,6 +245,21 @@ export class GaitAnalyzer {
       });
     }
 
+    // Check weight distribution imbalance
+    if (metrics.weightDistributionScore > WEIGHT_IMBALANCE_THRESHOLD_MILD) {
+      const severity: SeverityLevel = 
+        metrics.weightDistributionScore > WEIGHT_IMBALANCE_THRESHOLD_MODERATE ? 'moderate' : 'mild';
+      
+      const heavierSide = metrics.averageRightWeight > metrics.averageLeftWeight ? 'right' : 'left';
+      
+      diagnoses.push({
+        type: 'WEIGHT_IMBALANCE',
+        severity,
+        description: `Uneven weight distribution detected (${metrics.weightDistributionScore.toFixed(1)}% imbalance, favoring ${heavierSide} side)`,
+        affectedSide: 'both'
+      });
+    }
+
     return diagnoses;
   }
 
@@ -257,6 +314,21 @@ export class GaitAnalyzer {
             priority: 'medium'
           });
           break;
+
+        case 'WEIGHT_IMBALANCE':
+          exerciseMap.set('3', {
+            exerciseId: '3',
+            exerciseName: 'Straight Leg Raises',
+            reason: 'Improves single-leg strength to correct weight distribution imbalance',
+            priority: 'high'
+          });
+          exerciseMap.set('1', {
+            exerciseId: '1',
+            exerciseName: 'Heel Slides',
+            reason: 'Helps restore balanced movement patterns',
+            priority: 'medium'
+          });
+          break;
       }
     });
 
@@ -272,6 +344,7 @@ export class GaitAnalyzer {
     const rom = this.analyzeRangeOfMotion();
     const asymmetry = this.analyzeAsymmetry();
     const lateralStability = this.analyzeLateralStability();
+    const weightDistribution = this.analyzeWeightDistribution();
     const testDuration = (Date.now() - this.startTime) / 1000;
 
     const metrics: GaitMetrics = {
@@ -279,10 +352,13 @@ export class GaitAnalyzer {
       leftKneeROM: rom.left,
       asymmetryScore: asymmetry.score,
       lateralStabilityScore: lateralStability,
+      weightDistributionScore: weightDistribution.score,
       stepCount: this.stepCount,
       testDuration,
       averageRightKnee: asymmetry.avgRight,
-      averageLeftKnee: asymmetry.avgLeft
+      averageLeftKnee: asymmetry.avgLeft,
+      averageRightWeight: weightDistribution.avgRight,
+      averageLeftWeight: weightDistribution.avgLeft
     };
 
     const diagnoses = this.generateDiagnosis(metrics);
