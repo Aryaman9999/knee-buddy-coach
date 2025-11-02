@@ -198,32 +198,120 @@ class BluetoothService {
     if (!value) return;
 
     try {
-      // Parse JSON packet
-      const decoder = new TextDecoder('utf-8');
-      const jsonString = decoder.decode(value);
-      const rawData = JSON.parse(jsonString);
-
-      // Transform to SensorPacket format
-      const packet: SensorPacket = {
-        timestamp: rawData.timestamp || Date.now(),
-        sensors: {
-          pelvis: this.parseQuaternion(rawData.sens1),
-          right_thigh: this.parseQuaternion(rawData.sens2),
-          right_shin: this.parseQuaternion(rawData.sens3),
-          left_thigh: this.parseQuaternion(rawData.sens4),
-          left_shin: this.parseQuaternion(rawData.sens5),
-        },
-        left_wt: rawData.left_wt || 0,
-        right_wt: rawData.right_wt || 0,
-        battery: rawData.battery || 100,
-        status: rawData.status || 'ok'
-      };
-
-      // Notify all listeners
-      this.dataCallbacks.forEach(callback => callback(packet));
+      // Check if binary or JSON format by checking size
+      // Binary format is exactly 94 bytes
+      if (value.byteLength === 94) {
+        // Parse binary packet
+        this.parseBinaryPacket(value);
+      } else {
+        // Legacy JSON format
+        this.parseJsonPacket(value);
+      }
     } catch (error) {
       console.error('Error parsing sensor data:', error);
     }
+  }
+
+  // Parse binary protocol packet (94 bytes)
+  private parseBinaryPacket(value: DataView): void {
+    const view = new DataView(value.buffer);
+    let offset = 0;
+
+    // 1. Timestamp (4 bytes)
+    const timestamp = view.getUint32(offset, true); // little-endian
+    offset += 4;
+
+    // 2. Parse 5 quaternions (80 bytes total)
+    const pelvis = {
+      qw: view.getFloat32(offset, true), 
+      qx: view.getFloat32(offset + 4, true),
+      qy: view.getFloat32(offset + 8, true),
+      qz: view.getFloat32(offset + 12, true)
+    };
+    offset += 16;
+
+    const right_thigh = {
+      qw: view.getFloat32(offset, true),
+      qx: view.getFloat32(offset + 4, true),
+      qy: view.getFloat32(offset + 8, true),
+      qz: view.getFloat32(offset + 12, true)
+    };
+    offset += 16;
+
+    const right_shin = {
+      qw: view.getFloat32(offset, true),
+      qx: view.getFloat32(offset + 4, true),
+      qy: view.getFloat32(offset + 8, true),
+      qz: view.getFloat32(offset + 12, true)
+    };
+    offset += 16;
+
+    const left_thigh = {
+      qw: view.getFloat32(offset, true),
+      qx: view.getFloat32(offset + 4, true),
+      qy: view.getFloat32(offset + 8, true),
+      qz: view.getFloat32(offset + 12, true)
+    };
+    offset += 16;
+
+    const left_shin = {
+      qw: view.getFloat32(offset, true),
+      qx: view.getFloat32(offset + 4, true),
+      qy: view.getFloat32(offset + 8, true),
+      qz: view.getFloat32(offset + 12, true)
+    };
+    offset += 16;
+
+    // 3. Weight sensors (8 bytes)
+    const left_wt = view.getFloat32(offset, true);
+    offset += 4;
+    const right_wt = view.getFloat32(offset, true);
+    offset += 4;
+
+    // 4. Battery (1 byte)
+    const battery = view.getUint8(offset);
+    offset += 1;
+
+    // 5. Status (1 byte)
+    const statusCode = view.getUint8(offset);
+    const status = statusCode === 0 ? 'ok' : statusCode === 1 ? 'warning' : 'error';
+
+    const packet: SensorPacket = {
+      timestamp,
+      sensors: { pelvis, right_thigh, right_shin, left_thigh, left_shin },
+      left_wt,
+      right_wt,
+      battery,
+      status
+    };
+
+    // Notify all listeners
+    this.dataCallbacks.forEach(callback => callback(packet));
+  }
+
+  // Parse legacy JSON packet
+  private parseJsonPacket(value: DataView): void {
+    const decoder = new TextDecoder('utf-8');
+    const jsonString = decoder.decode(value);
+    const rawData = JSON.parse(jsonString);
+
+    const packet: SensorPacket = {
+      timestamp: rawData.timestamp || Date.now(),
+      sensors: {
+        pelvis: this.parseQuaternion(rawData.sens1),
+        right_thigh: this.parseQuaternion(rawData.sens2),
+        right_shin: this.parseQuaternion(rawData.sens3),
+        left_thigh: this.parseQuaternion(rawData.sens4),
+        left_shin: this.parseQuaternion(rawData.sens5),
+      },
+      left_wt: rawData.left_wt || 0,
+      right_wt: rawData.right_wt || 0,
+      battery: rawData.battery || 100,
+      status: rawData.status || 'ok'
+    };
+
+    // Notify all listeners
+    this.dataCallbacks.forEach(callback => callback(packet));
   }
 
   // Parse quaternion from string or object

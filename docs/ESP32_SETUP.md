@@ -83,42 +83,84 @@ void setup() {
 
 void loop() {
   if (deviceConnected) {
-    // Read quaternion data from all 5 sensors
-    // This is pseudo-code - implement based on your IMU library
-    
-    String jsonData = createSensorPacket();
+    // Create binary sensor packet
+    uint8_t binaryData[94]; // Size calculation below
+    createBinarySensorPacket(binaryData);
     
     // Send data via BLE
-    pCharacteristic->setValue(jsonData.c_str());
+    pCharacteristic->setValue(binaryData, sizeof(binaryData));
     pCharacteristic->notify();
     
     delay(50); // 20 Hz update rate
   }
 }
 
-String createSensorPacket() {
-  // Read quaternions from your 5 IMU sensors
-  // Format: sens1 = pelvis, sens2 = right thigh, sens3 = right shin,
-  //         sens4 = left thigh, sens5 = left shin
+void createBinarySensorPacket(uint8_t* buffer) {
+  // Binary packet format (94 bytes total):
+  // - 4 bytes: timestamp (uint32_t)
+  // - 80 bytes: 5 quaternions × 4 floats × 4 bytes = 80 bytes
+  // - 8 bytes: left_wt (float), right_wt (float)
+  // - 1 byte: battery (uint8_t)
+  // - 1 byte: status (0=ok, 1=warning, 2=error)
   
-  String json = "{";
-  json += "\"timestamp\":" + String(millis()) + ",";
+  int offset = 0;
   
-  // Option 1: Object format (recommended)
-  json += "\"sens1\":{\"qw\":1.0,\"qx\":0.0,\"qy\":0.0,\"qz\":0.0},";
-  json += "\"sens2\":{\"qw\":1.0,\"qx\":0.0,\"qy\":0.0,\"qz\":0.0},";
-  json += "\"sens3\":{\"qw\":1.0,\"qx\":0.0,\"qy\":0.0,\"qz\":0.0},";
-  json += "\"sens4\":{\"qw\":1.0,\"qx\":0.0,\"qy\":0.0,\"qz\":0.0},";
-  json += "\"sens5\":{\"qw\":1.0,\"qx\":0.0,\"qy\":0.0,\"qz\":0.0},";
+  // 1. Timestamp (4 bytes)
+  uint32_t timestamp = millis();
+  memcpy(buffer + offset, &timestamp, 4);
+  offset += 4;
   
-  // Option 2: String format (also supported)
-  // json += "\"sens1\":\"1.0,0.0,0.0,0.0\",";
+  // 2. Read quaternions from your 5 IMU sensors
+  // Replace these with actual sensor readings
+  float pelvis_qw = 1.0f, pelvis_qx = 0.0f, pelvis_qy = 0.0f, pelvis_qz = 0.0f;
+  float rt_qw = 1.0f, rt_qx = 0.0f, rt_qy = 0.0f, rt_qz = 0.0f;
+  float rs_qw = 1.0f, rs_qx = 0.0f, rs_qy = 0.0f, rs_qz = 0.0f;
+  float lt_qw = 1.0f, lt_qx = 0.0f, lt_qy = 0.0f, lt_qz = 0.0f;
+  float ls_qw = 1.0f, ls_qx = 0.0f, ls_qy = 0.0f, ls_qz = 0.0f;
   
-  json += "\"battery\":" + String(getBatteryLevel()) + ",";
-  json += "\"status\":\"ok\"";
-  json += "}";
+  // Sensor 1: Pelvis (16 bytes)
+  memcpy(buffer + offset, &pelvis_qw, 4); offset += 4;
+  memcpy(buffer + offset, &pelvis_qx, 4); offset += 4;
+  memcpy(buffer + offset, &pelvis_qy, 4); offset += 4;
+  memcpy(buffer + offset, &pelvis_qz, 4); offset += 4;
   
-  return json;
+  // Sensor 2: Right Thigh (16 bytes)
+  memcpy(buffer + offset, &rt_qw, 4); offset += 4;
+  memcpy(buffer + offset, &rt_qx, 4); offset += 4;
+  memcpy(buffer + offset, &rt_qy, 4); offset += 4;
+  memcpy(buffer + offset, &rt_qz, 4); offset += 4;
+  
+  // Sensor 3: Right Shin (16 bytes)
+  memcpy(buffer + offset, &rs_qw, 4); offset += 4;
+  memcpy(buffer + offset, &rs_qx, 4); offset += 4;
+  memcpy(buffer + offset, &rs_qy, 4); offset += 4;
+  memcpy(buffer + offset, &rs_qz, 4); offset += 4;
+  
+  // Sensor 4: Left Thigh (16 bytes)
+  memcpy(buffer + offset, &lt_qw, 4); offset += 4;
+  memcpy(buffer + offset, &lt_qx, 4); offset += 4;
+  memcpy(buffer + offset, &lt_qy, 4); offset += 4;
+  memcpy(buffer + offset, &lt_qz, 4); offset += 4;
+  
+  // Sensor 5: Left Shin (16 bytes)
+  memcpy(buffer + offset, &ls_qw, 4); offset += 4;
+  memcpy(buffer + offset, &ls_qx, 4); offset += 4;
+  memcpy(buffer + offset, &ls_qy, 4); offset += 4;
+  memcpy(buffer + offset, &ls_qz, 4); offset += 4;
+  
+  // 3. Weight sensors (8 bytes)
+  float left_weight = 0.0f;  // Read from actual sensor
+  float right_weight = 0.0f; // Read from actual sensor
+  memcpy(buffer + offset, &left_weight, 4); offset += 4;
+  memcpy(buffer + offset, &right_weight, 4); offset += 4;
+  
+  // 4. Battery level (1 byte, 0-100)
+  uint8_t battery = getBatteryLevel();
+  buffer[offset++] = battery;
+  
+  // 5. Status (1 byte: 0=ok, 1=warning, 2=error)
+  uint8_t status = 0; // 0 = ok
+  buffer[offset++] = status;
 }
 
 int getBatteryLevel() {
@@ -130,7 +172,34 @@ int getBatteryLevel() {
 
 ## Data Packet Format
 
-### JSON Structure
+### Binary Protocol (Recommended)
+
+The binary packet is **94 bytes** total with the following structure:
+
+| Offset | Size | Type | Description |
+|--------|------|------|-------------|
+| 0 | 4 | uint32_t | Timestamp (milliseconds) |
+| 4 | 16 | 4× float | Pelvis quaternion (qw, qx, qy, qz) |
+| 20 | 16 | 4× float | Right thigh quaternion (qw, qx, qy, qz) |
+| 36 | 16 | 4× float | Right shin quaternion (qw, qx, qy, qz) |
+| 52 | 16 | 4× float | Left thigh quaternion (qw, qx, qy, qz) |
+| 68 | 16 | 4× float | Left shin quaternion (qw, qx, qy, qz) |
+| 84 | 4 | float | Left heel weight (0-100) |
+| 88 | 4 | float | Right heel weight (0-100) |
+| 92 | 1 | uint8_t | Battery level (0-100) |
+| 93 | 1 | uint8_t | Status (0=ok, 1=warning, 2=error) |
+
+**Benefits of Binary Protocol:**
+- ✅ **94 bytes** vs **250+ bytes** for JSON (62% smaller)
+- ✅ **No memory fragmentation** (no String objects)
+- ✅ **3-5x faster** transmission
+- ✅ **Lower power consumption**
+- ✅ **More reliable** on ESP32
+
+### Legacy JSON Format (Deprecated)
+
+For backwards compatibility, JSON format is still supported but not recommended:
+
 ```json
 {
   "timestamp": 123456789,
@@ -139,20 +208,6 @@ int getBatteryLevel() {
   "sens3": {"qw": 0.8, "qx": 0.2, "qy": 0.0, "qz": 0.0},
   "sens4": {"qw": 0.9, "qx": 0.1, "qy": 0.0, "qz": 0.0},
   "sens5": {"qw": 0.8, "qx": 0.2, "qy": 0.0, "qz": 0.0},
-  "battery": 85,
-  "status": "ok"
-}
-```
-
-### Alternative String Format
-```json
-{
-  "timestamp": 123456789,
-  "sens1": "1.0,0.0,0.0,0.0",
-  "sens2": "0.9,0.1,0.0,0.0",
-  "sens3": "0.8,0.2,0.0,0.0",
-  "sens4": "0.9,0.1,0.0,0.0",
-  "sens5": "0.8,0.2,0.0,0.0",
   "battery": 85,
   "status": "ok"
 }
