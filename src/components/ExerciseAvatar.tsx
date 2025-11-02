@@ -66,7 +66,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
 
       const processed = sensorDataMapper.processSensorPacket(sensorData, true);
 
-      // 1. Apply Pelvis Orientation to the pelvis mesh
+      // 1. Apply Pelvis Orientation to the PELVIS MESH (respecting the group's starting pose)
       const pelvisQ = sensorDataMapper.toThreeQuaternion(processed.sensors.pelvis);
       if (pelvisMeshRef.current) {
         pelvisMeshRef.current.quaternion.copy(pelvisQ);
@@ -85,17 +85,12 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
       }
 
       // 3. Apply RELATIVE Knee Orientations (relative to thigh)
-      // Calculate shin rotation relative to thigh to avoid broken leg joints
       if (rightKneeRef.current) {
         const thighQ = sensorDataMapper.toThreeQuaternion(processed.sensors.right_thigh);
         const shinQ = sensorDataMapper.toThreeQuaternion(processed.sensors.right_shin);
-        
-        // Calculate relative rotation: shin relative to thigh
-        // relative = thigh_inverse * shin
         const relativeShinQ = thighQ.clone().invert().multiply(shinQ);
         rightKneeRef.current.quaternion.copy(relativeShinQ);
       }
-
       if (leftKneeRef.current) {
         const thighQ = sensorDataMapper.toThreeQuaternion(processed.sensors.left_thigh);
         const shinQ = sensorDataMapper.toThreeQuaternion(processed.sensors.left_shin);
@@ -108,17 +103,17 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
       const thighSensor = usesLeftLeg ? processed.sensors.left_thigh : processed.sensors.right_thigh;
       const shinSensor = usesLeftLeg ? processed.sensors.left_shin : processed.sensors.right_shin;
       const trackedKneeRef = usesLeftLeg ? leftKneeRef : rightKneeRef;
-      
+
       const kneeAngle = sensorDataMapper.calculateJointAngle(thighSensor, shinSensor);
       setCurrentKneeAngle(kneeAngle);
-      
+
       // 5. Update indicator world position to track knee
       if (trackedKneeRef.current) {
         const worldPos = new Vector3();
         trackedKneeRef.current.getWorldPosition(worldPos);
         setKneeWorldPosition(worldPos.clone().add(new Vector3(0.3, 0, 0.3)));
       }
-      
+
       return;
     }
 
@@ -203,13 +198,16 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
     }
 
     // Update current knee angle for visualization
-    if (rightKneeRef.current) {
-      const angle = quaternionToAngle(rightKneeRef.current.quaternion);
+    // Use the tracked leg for demo angle as well
+    const trackedKneeRef = trackedLeg === 'left' ? leftKneeRef : rightKneeRef;
+
+    if (trackedKneeRef.current) {
+      const angle = quaternionToAngle(trackedKneeRef.current.quaternion);
       setCurrentKneeAngle(angle);
-      
+
       // Update indicator position to follow knee in demo mode
       const worldPos = new Vector3();
-      rightKneeRef.current.getWorldPosition(worldPos);
+      trackedKneeRef.current.getWorldPosition(worldPos);
       setKneeWorldPosition(worldPos.clone().add(new Vector3(0.3, 0, 0.3)));
     }
   });
