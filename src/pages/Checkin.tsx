@@ -375,6 +375,7 @@ const Checkin = () => {
                         mode="live"
                         sensorData={sensorData}
                         isSensorConnected={isSensorConnected}
+                        trackedLeg="right"
                       />
                     </Canvas>
                   </Suspense>

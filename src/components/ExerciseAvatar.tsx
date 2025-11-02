@@ -12,6 +12,7 @@ interface ExerciseAvatarProps {
   mode: 'demo' | 'live';
   sensorData?: SensorPacket | null;
   isSensorConnected: boolean;
+  trackedLeg: "right" | "left" | "bilateral";
 }
 
 // Target angles for each exercise (in degrees)
@@ -31,10 +32,10 @@ const exercisePoses: Record<string, "lying" | "sitting"> = {
   "3": "lying",   // Straight Leg Raises
   "4": "lying",   // Ankle Pumps
   "5": "sitting", // Short Arc Quads
-  "6": "sitting", // Hamstring Curls
+  "6": "lying",   // Hamstring Curls (Prone)
 };
 
-const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, isSensorConnected }: ExerciseAvatarProps) => {
+const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, isSensorConnected, trackedLeg }: ExerciseAvatarProps) => {
   const groupRef = useRef<Group>(null);
   const rightUpperLegRef = useRef<Group>(null);
   const rightKneeRef = useRef<Group>(null);
@@ -108,17 +109,19 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         leftKneeRef.current.quaternion.copy(relativeShinQ);
       }
 
-      // 4. Calculate Angle for Indicator
-      const kneeAngle = sensorDataMapper.calculateJointAngle(
-        processed.sensors.right_thigh,
-        processed.sensors.right_shin
-      );
+      // 4. Calculate Angle for Indicator based on tracked leg
+      const usesLeftLeg = trackedLeg === "left";
+      const thighSensor = usesLeftLeg ? processed.sensors.left_thigh : processed.sensors.right_thigh;
+      const shinSensor = usesLeftLeg ? processed.sensors.left_shin : processed.sensors.right_shin;
+      const trackedKneeRef = usesLeftLeg ? leftKneeRef : rightKneeRef;
+      
+      const kneeAngle = sensorDataMapper.calculateJointAngle(thighSensor, shinSensor);
       setCurrentKneeAngle(kneeAngle);
       
       // 5. Update indicator world position to track knee
-      if (rightKneeRef.current) {
+      if (trackedKneeRef.current) {
         const worldPos = new Vector3();
-        rightKneeRef.current.getWorldPosition(worldPos);
+        trackedKneeRef.current.getWorldPosition(worldPos);
         setKneeWorldPosition(worldPos.clone().add(new Vector3(0.3, 0, 0.3)));
       }
       
@@ -150,14 +153,13 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         }
         break;
 
-      case "2": // Quad Sets
-        if (rightUpperLegRef.current && leftUpperLegRef.current && rightKneeRef.current && leftKneeRef.current) {
-          const flex = Math.abs(Math.sin(time)) * 0.3;
-          rightUpperLegRef.current.quaternion.copy(createQuaternion(-flex * 0.2, 0, 0));
-          leftUpperLegRef.current.quaternion.copy(createQuaternion(-flex * 0.2, 0, 0));
-          rightKneeRef.current.quaternion.copy(createQuaternion(flex, 0, 0));
-          leftKneeRef.current.quaternion.copy(createQuaternion(flex, 0, 0));
+      case "2": // Quad Sets - Isometric (no movement, pulsing visual)
+        // No joint rotation - static pose
+        if (rightUpperLegRef.current && leftUpperLegRef.current) {
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+          leftUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
         }
+        // Note: Pulsing effect should be added via material emissive animation
         break;
 
       case "3": // Straight Leg Raises
@@ -168,12 +170,14 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         }
         break;
 
-      case "4": // Ankle Pumps
-        if (rightKneeRef.current && leftKneeRef.current) {
-          const pump = Math.sin(time * 2) * 0.4;
-          rightKneeRef.current.quaternion.copy(createQuaternion(pump * 0.5, 0, 0));
-          leftKneeRef.current.quaternion.copy(createQuaternion(pump * 0.5, 0, 0));
+      case "4": // Ankle Pumps - feet move, not knees
+        // Feet should pump up and down (dorsiflexion/plantarflexion)
+        // Since we don't have separate foot refs, we'll keep legs still
+        if (rightUpperLegRef.current && leftUpperLegRef.current) {
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+          leftUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
         }
+        // Note: Proper implementation would rotate foot meshes on X-axis
         break;
 
       case "5": // Short Arc Quads (Seated - extending from 90°)
@@ -184,11 +188,11 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         }
         break;
 
-      case "6": // Hamstring Curls (Seated - flexing from 90°)
+      case "6": // Hamstring Curls (Prone/Lying - knee flexion)
         if (rightUpperLegRef.current && rightKneeRef.current) {
           const curl = Math.sin(time) * 0.9; // Curl motion
-          rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0)); // Thigh stays horizontal
-          rightKneeRef.current.quaternion.copy(createQuaternion(Math.abs(curl), 0, 0)); // Flexion
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0)); // Thigh stays on ground
+          rightKneeRef.current.quaternion.copy(createQuaternion(Math.abs(curl), 0, 0)); // Knee flexes upward
         }
         break;
     }

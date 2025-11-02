@@ -11,13 +11,13 @@ import { SensorPacket } from "@/types/sensorData";
 import { Suspense } from "react";
 import ExerciseAvatar from "@/components/ExerciseAvatar";
 
-const exerciseData: Record<string, { name: string; sets: number; reps: number }> = {
-  "1": { name: "Heel Slides", sets: 3, reps: 15 },
-  "2": { name: "Quad Sets", sets: 3, reps: 20 },
-  "3": { name: "Straight Leg Raises", sets: 3, reps: 12 },
-  "4": { name: "Ankle Pumps", sets: 3, reps: 25 },
-  "5": { name: "Short Arc Quads", sets: 3, reps: 15 },
-  "6": { name: "Hamstring Curls", sets: 3, reps: 12 },
+const exerciseData: Record<string, { name: string; sets: number; reps: number; leg: "right" | "left" | "bilateral" }> = {
+  "1": { name: "Heel Slides", sets: 3, reps: 15, leg: "right" },
+  "2": { name: "Quad Sets", sets: 3, reps: 20, leg: "bilateral" },
+  "3": { name: "Straight Leg Raises", sets: 3, reps: 12, leg: "right" },
+  "4": { name: "Ankle Pumps", sets: 3, reps: 25, leg: "bilateral" },
+  "5": { name: "Short Arc Quads", sets: 3, reps: 15, leg: "right" },
+  "6": { name: "Hamstring Curls", sets: 3, reps: 12, leg: "right" },
 };
 
 type ExercisePhase = 'demo' | 'countdown' | 'live' | 'complete';
@@ -50,10 +50,13 @@ const ExercisePlayer = () => {
           if (!sensorDataMapper.isValidPacket(data)) return;
           
           const processed = sensorDataMapper.processSensorPacket(data, true);
-          const kneeAngle = sensorDataMapper.calculateJointAngle(
-            processed.sensors.right_thigh,
-            processed.sensors.right_shin
-          );
+          
+          // Select sensors based on exercise leg
+          const usesLeftLeg = exercise.leg === "left";
+          const thighSensor = usesLeftLeg ? processed.sensors.left_thigh : processed.sensors.right_thigh;
+          const shinSensor = usesLeftLeg ? processed.sensors.left_shin : processed.sensors.right_shin;
+          
+          const kneeAngle = sensorDataMapper.calculateJointAngle(thighSensor, shinSensor);
           
           // Dynamic thresholds based on exercise target angle
           const exerciseTargetAngles: Record<string, number> = {
@@ -145,40 +148,12 @@ const ExercisePlayer = () => {
     return () => clearInterval(interval);
   }, [exercisePhase]);
 
-  // Fallback rep counter only if sensor is NOT connected
+  // Show disconnected warning when in live mode without sensors
   useEffect(() => {
-    if (!exercise || isPaused || exercisePhase !== 'live' || isSensorConnected) return;
-
-    // Generic feedback without false claims about form
-    const feedbackMessages = [
-      "Complete the movement",
-      "Continue the exercise",
-      "Keep moving",
-      "Next rep",
-      "Stay focused",
-    ];
-
-    const interval = setInterval(() => {
-      setCurrentRep((prev) => {
-        if (prev < exercise.reps) {
-          setFeedback(feedbackMessages[Math.floor(Math.random() * feedbackMessages.length)]);
-          return prev + 1;
-          } else {
-            if (currentSet < exercise.sets) {
-              setCurrentSet(currentSet + 1);
-              return 0;
-            } else {
-              clearInterval(interval);
-              setExercisePhase('complete');
-              setFeedback("Exercise complete!");
-            }
-            return prev;
-        }
-      });
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [exercise, currentSet, isPaused, exercisePhase, isSensorConnected]);
+    if (exercisePhase === 'live' && !isSensorConnected) {
+      setFeedback("⚠️ Sensors disconnected. Reps are not being counted. Please reconnect.");
+    }
+  }, [exercisePhase, isSensorConnected]);
 
   if (!exercise) {
     return (
@@ -269,6 +244,7 @@ const ExercisePlayer = () => {
                       mode={exercisePhase === 'demo' ? 'demo' : 'live'}
                       sensorData={sensorData}
                       isSensorConnected={isSensorConnected}
+                      trackedLeg={exercise.leg}
                     />
                   </Canvas>
                 </Suspense>

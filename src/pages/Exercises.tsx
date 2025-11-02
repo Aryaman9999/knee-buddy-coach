@@ -4,12 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Home, ClipboardList, ArrowRight } from "lucide-react";
 
 const exercises = [
-  { id: 1, name: "Heel Slides", sets: 3, reps: 15, description: "Strengthen your hamstrings and improve knee flexibility" },
-  { id: 2, name: "Quad Sets", sets: 3, reps: 20, description: "Build strength in your quadriceps muscles" },
-  { id: 3, name: "Straight Leg Raises", sets: 3, reps: 12, description: "Strengthen your quadriceps without bending your knee" },
-  { id: 4, name: "Ankle Pumps", sets: 3, reps: 25, description: "Improve circulation and ankle mobility" },
-  { id: 5, name: "Short Arc Quads", sets: 3, reps: 15, description: "Safely strengthen your quadriceps with minimal knee stress" },
-  { id: 6, name: "Hamstring Curls", sets: 3, reps: 12, description: "Build strength in the back of your thigh" },
+  { id: 1, name: "Heel Slides", sets: 3, reps: 15, description: "Strengthen your hamstrings and improve knee flexibility", leg: "right" },
+  { id: 2, name: "Quad Sets", sets: 3, reps: 20, description: "Build strength in your quadriceps muscles", leg: "bilateral" },
+  { id: 3, name: "Straight Leg Raises", sets: 3, reps: 12, description: "Strengthen your quadriceps without bending your knee", leg: "right" },
+  { id: 4, name: "Ankle Pumps", sets: 3, reps: 25, description: "Improve circulation and ankle mobility", leg: "bilateral" },
+  { id: 5, name: "Short Arc Quads", sets: 3, reps: 15, description: "Safely strengthen your quadriceps with minimal knee stress", leg: "right" },
+  { id: 6, name: "Hamstring Curls", sets: 3, reps: 12, description: "Build strength in the back of your thigh", leg: "right" },
 ];
 
 const Exercises = () => {
