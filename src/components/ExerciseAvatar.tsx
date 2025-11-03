@@ -10,12 +10,12 @@ export const exerciseDefinitions: Record<string, {
   targetAngle: number;
   startingPose: 'standing' | 'sitting' | 'lying';
 }> = {
-  "1": { targetAngle: 90, startingPose: 'lying' },   // Heel Slides
-  "2": { targetAngle: 30, startingPose: 'lying' },   // Quad Sets
-  "3": { targetAngle: 45, startingPose: 'lying' },   // Straight Leg Raises
-  "4": { targetAngle: 20, startingPose: 'lying' },   // Ankle Pumps
-  "5": { targetAngle: 60, startingPose: 'sitting' }, // Short Arc Quads
-  "6": { targetAngle: 90, startingPose: 'lying' },   // Hamstring Curls (Prone/Supine)
+  "1": { targetAngle: 90, startingPose: 'lying' },     // Heel Slides - lying with knee bend
+  "2": { targetAngle: 30, startingPose: 'lying' },     // Quad Sets - lying, isometric
+  "3": { targetAngle: 45, startingPose: 'lying' },     // Straight Leg Raises - lying, lift straight leg
+  "4": { targetAngle: 20, startingPose: 'lying' },     // Ankle Pumps - lying, flex/point foot
+  "5": { targetAngle: 60, startingPose: 'lying' },     // Short Arc Quads - lying with support under knee
+  "6": { targetAngle: 90, startingPose: 'standing' },  // Hamstring Curls - standing, bend knee back
 };
 
 interface ExerciseAvatarProps {
@@ -178,23 +178,25 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         }
         break;
 
-      case "5": // Short Arc Quads (Sitting)
-        if (rightKneeRef.current) {
-          // Start from 90deg bend (from hipRotation)
-          // Animate from 90deg to ~60deg (a 30deg extension)
-          const extension = (Math.sin(time) * 0.5 + 0.5) * (Math.PI / 6); // 0 to 30 deg
-          // Apply negative rotation for extension
-          rightKneeRef.current.quaternion.copy(createQuaternion(-extension, 0, 0));
-        }
-        break;
+    case "5": // Short Arc Quads (Lying with support under knee)
+      if (rightKneeRef.current && rightUpperLegRef.current) {
+        // Thigh stays on support (slight hip flexion)
+        rightUpperLegRef.current.quaternion.copy(createQuaternion(0.3, 0, 0));
+        // Extend lower leg from bent to straight (lifting heel off floor)
+        const extension = (Math.sin(time) * 0.5 + 0.5) * (Math.PI / 3); // 0 to 60 deg
+        rightKneeRef.current.quaternion.copy(createQuaternion(-extension, 0, 0));
+      }
+      break;
 
-      case "6": // Hamstring Curls (Lying)
-        if (rightKneeRef.current) {
-          const curl = (Math.sin(time) * 0.5 + 0.5) * (Math.PI / 2); // 0 to 90 deg
-          // Flex knee while lying
-          rightKneeRef.current.quaternion.copy(createQuaternion(curl, 0, 0));
-        }
-        break;
+    case "6": // Hamstring Curls (Standing)
+      if (rightKneeRef.current && rightUpperLegRef.current) {
+        // Keep thigh vertical (no hip movement)
+        rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+        // Curl lower leg backward (bring heel toward buttocks)
+        const curl = (Math.sin(time) * 0.5 + 0.5) * (Math.PI / 2); // 0 to 90 deg
+        rightKneeRef.current.quaternion.copy(createQuaternion(curl, 0, 0));
+      }
+      break;
     }
 
     // Update current knee angle for visualization
@@ -232,8 +234,14 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
     pelvisPosition = [0, 0.6, 0.1]; // Position on top of the stool
     hipRotation = [-Math.PI / 2, 0, 0]; // Legs bent 90deg at hip
     floorYPosition = -0.5; // Floor is lower
+  } else if (pose === 'standing') {
+    // Stand upright on the floor
+    pelvisRotation = [0, 0, 0]; // Pelvis is upright
+    pelvisPosition = [0, 0.5, 0]; // Position above floor
+    hipRotation = [0, 0, 0]; // Legs are straight down
+    floorYPosition = -1.25; // Normal floor position
   }
-  // 'standing' pose uses the default [0,0,0] values
+  // Default uses standing values
 
   const rightLegPosition: [number, number, number] = [0.15, -0.125, 0];
   const leftLegPosition: [number, number, number] = [-0.15, -0.125, 0];
@@ -287,6 +295,20 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
           color="#a89277"
           roughness={0.6}
           metalness={0.1}
+        />
+      </mesh>
+
+      {/* Rolled towel support for Short Arc Quads (exercise 5) */}
+      <mesh
+        visible={pose === 'lying' && exerciseId === '5'}
+        position={[0.15, -0.3, 0]}
+        rotation={[0, 0, Math.PI / 2]}
+      >
+        <cylinderGeometry args={[0.08, 0.08, 0.3, 16]} />
+        <meshStandardMaterial
+          color="#e8d5c4"
+          roughness={0.7}
+          metalness={0.05}
         />
       </mesh>
 
