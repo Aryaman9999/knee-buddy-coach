@@ -233,9 +233,9 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
   } else if (pose === 'sitting') {
     // Sit on the "stool"
     pelvisRotation = [0, 0, 0]; // Pelvis upright
-    pelvisPosition = [0, 0.4, 0]; // Sit on stool
+    pelvisPosition = [0, 0.5, 0]; // Sit higher on stool (above platform)
     hipRotation = [Math.PI / 2, 0, 0]; // Legs bent 90deg down
-    floorYPosition = -0.5; // Lower floor for feet
+    floorYPosition = -1.0; // Lower floor for feet to rest
   } else if (pose === 'standing') {
     // Stand upright on the floor
     pelvisRotation = [0, 0, 0]; // Pelvis upright
@@ -289,9 +289,9 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
       {/* Reference platform (stool) for sitting exercises */}
       <mesh
         visible={pose === 'sitting'}
-        position={[0, 0, 0]}
+        position={[0, 0.1, 0]}
       >
-        <boxGeometry args={[0.6, 0.4, 0.6]} />
+        <boxGeometry args={[0.6, 0.5, 0.6]} />
         <meshStandardMaterial
           color="#a89277"
           roughness={0.6}
