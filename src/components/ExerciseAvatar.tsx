@@ -231,11 +231,11 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
     bedPosition = [0, -0.1, 0]; // Bed directly below
     floorYPosition = -0.3; // Raise floor to act as bed surface
   } else if (pose === 'sitting') {
-    // Sit on the "stool"
+    // Sit on the chair - pelvis on seat, legs hanging down
     pelvisRotation = [0, 0, 0]; // Pelvis upright
-    pelvisPosition = [0, 0.5, 0]; // Sit higher on stool (above platform)
+    pelvisPosition = [0, 0.65, 0]; // Sit on chair seat (raised higher)
     hipRotation = [Math.PI / 2, 0, 0]; // Legs bent 90deg down
-    floorYPosition = -1.0; // Lower floor for feet to rest
+    floorYPosition = -1.25; // Normal floor for feet to rest
   } else if (pose === 'standing') {
     // Stand upright on the floor
     pelvisRotation = [0, 0, 0]; // Pelvis upright
@@ -249,57 +249,115 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
 
   return (
     <>
-      {/* Soft ambient lighting for calm atmosphere */}
-      <ambientLight intensity={0.6} color="#f0f4f8" />
+      {/* Enhanced lighting for professional look */}
+      <ambientLight intensity={0.7} color="#f5f7fa" />
       
-      {/* Key light - soft white from top-right */}
+      {/* Main key light - clean white from top-right */}
       <directionalLight 
-        position={[3, 5, 4]} 
-        intensity={0.8} 
+        position={[4, 6, 5]} 
+        intensity={1.2} 
         color="#ffffff"
+        castShadow
       />
       
-      {/* Fill light - gentle blue from left */}
+      {/* Fill light - soft blue from left for depth */}
       <directionalLight 
-        position={[-3, 3, 2]} 
-        intensity={0.4} 
-        color="#a8d5f2"
+        position={[-4, 4, 3]} 
+        intensity={0.5} 
+        color="#e3f2fd"
       />
       
-      {/* Rim light - subtle highlight */}
+      {/* Rim light - accent highlight from behind */}
       <pointLight 
-        position={[0, 2, -3]} 
+        position={[0, 3, -4]} 
+        intensity={0.6} 
+        color="#fff3e0"
+      />
+      
+      {/* Bottom fill - subtle uplighting */}
+      <pointLight 
+        position={[0, -2, 2]} 
         intensity={0.3} 
-        color="#e8f5e9"
+        color="#f0f4f8"
       />
 
-      {/* Reference platform (bed) for lying exercises */}
+      {/* Professional therapy bed for lying exercises */}
       <mesh
         visible={pose === 'lying'}
         position={bedPosition}
       >
         <boxGeometry args={[1.2, 0.15, 2]} />
         <meshStandardMaterial
-          color="#d0dde8"
-          roughness={0.8}
-          metalness={0.1}
-        />
-      </mesh>
-
-      {/* Reference platform (stool) for sitting exercises */}
-      <mesh
-        visible={pose === 'sitting'}
-        position={[0, 0.1, 0]}
-      >
-        <boxGeometry args={[0.6, 0.5, 0.6]} />
-        <meshStandardMaterial
-          color="#a89277"
+          color="#e8eef5"
           roughness={0.6}
-          metalness={0.1}
+          metalness={0.15}
         />
       </mesh>
 
-      {/* Rolled towel support for Short Arc Quads (exercise 5) */}
+      {/* Chair for sitting exercises */}
+      <group visible={pose === 'sitting'}>
+        {/* Chair seat */}
+        <mesh position={[0, 0.4, 0]}>
+          <boxGeometry args={[0.5, 0.08, 0.5]} />
+          <meshStandardMaterial
+            color="#8b6f47"
+            roughness={0.4}
+            metalness={0.2}
+          />
+        </mesh>
+        
+        {/* Chair back */}
+        <mesh position={[0, 0.7, -0.22]}>
+          <boxGeometry args={[0.5, 0.6, 0.08]} />
+          <meshStandardMaterial
+            color="#8b6f47"
+            roughness={0.4}
+            metalness={0.2}
+          />
+        </mesh>
+        
+        {/* Chair legs - front left */}
+        <mesh position={[-0.18, 0.15, 0.18]}>
+          <cylinderGeometry args={[0.025, 0.025, 0.3, 16]} />
+          <meshStandardMaterial
+            color="#6b5434"
+            roughness={0.5}
+            metalness={0.1}
+          />
+        </mesh>
+        
+        {/* Chair legs - front right */}
+        <mesh position={[0.18, 0.15, 0.18]}>
+          <cylinderGeometry args={[0.025, 0.025, 0.3, 16]} />
+          <meshStandardMaterial
+            color="#6b5434"
+            roughness={0.5}
+            metalness={0.1}
+          />
+        </mesh>
+        
+        {/* Chair legs - back left */}
+        <mesh position={[-0.18, 0.15, -0.18]}>
+          <cylinderGeometry args={[0.025, 0.025, 0.3, 16]} />
+          <meshStandardMaterial
+            color="#6b5434"
+            roughness={0.5}
+            metalness={0.1}
+          />
+        </mesh>
+        
+        {/* Chair legs - back right */}
+        <mesh position={[0.18, 0.15, -0.18]}>
+          <cylinderGeometry args={[0.025, 0.025, 0.3, 16]} />
+          <meshStandardMaterial
+            color="#6b5434"
+            roughness={0.5}
+            metalness={0.1}
+          />
+        </mesh>
+      </group>
+
+      {/* Foam roll support for Short Arc Quads (exercise 5) */}
       <mesh
         visible={pose === 'lying' && exerciseId === '5'}
         position={[0.15, -0.15, -0.3]}
@@ -307,20 +365,20 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
       >
         <cylinderGeometry args={[0.08, 0.08, 0.35, 16]} />
         <meshStandardMaterial
-          color="#e8d5c4"
-          roughness={0.7}
-          metalness={0.05}
+          color="#f0e5d8"
+          roughness={0.6}
+          metalness={0.08}
         />
       </mesh>
 
       <group ref={groupRef} position={[0, 0, 0]} rotation={pelvisRotation}>
-        {/* Lower Back / Pelvis - soft teal/blue */}
+        {/* Lower Back / Pelvis - professional blue tone */}
         <mesh ref={pelvisMeshRef} position={pelvisPosition}>
           <boxGeometry args={[0.4, 0.25, 0.2]} />
           <meshStandardMaterial 
-            color="#7eb3d4" 
-            roughness={0.4}
-            metalness={0.1}
+            color="#5b9fd8" 
+            roughness={0.3}
+            metalness={0.15}
           />
         </mesh>
 
@@ -328,48 +386,48 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         <group position={rightLegPosition}>
           {/* Hip Joint - rotation point for upper leg */}
           <group ref={rightUpperLegRef} rotation={hipRotation}>
-            {/* Upper Leg (Thigh) - warm beige */}
+            {/* Upper Leg (Thigh) - refined skin tone */}
             <mesh position={[0, -0.25, 0]}>
               <cylinderGeometry args={[0.08, 0.07, 0.5, 32]} />
               <meshStandardMaterial 
-                color="#c4a788" 
-                roughness={0.5}
-                metalness={0.05}
+                color="#d4b5a0" 
+                roughness={0.4}
+                metalness={0.08}
               />
             </mesh>
             
             {/* Knee Joint - highlighted with glow */}
             <group ref={rightKneeRef} position={[0, -0.5, 0]}>
-              {/* Main knee sphere */}
+              {/* Main knee sphere - enhanced highlight */}
               <mesh>
                 <sphereGeometry args={[0.11, 32, 32]} />
                 <meshStandardMaterial 
-                  color="#a89277" 
-                  roughness={0.3}
-                  metalness={0.1}
-                  emissive="#ffd89b"
-                  emissiveIntensity={0.15}
+                  color="#b8a18a" 
+                  roughness={0.25}
+                  metalness={0.15}
+                  emissive="#ffb347"
+                  emissiveIntensity={0.25}
                 />
               </mesh>
               
-              {/* Glow ring around knee */}
+              {/* Glow ring around knee - stronger emphasis */}
               <mesh rotation={[Math.PI / 2, 0, 0]}>
-                <torusGeometry args={[0.13, 0.015, 16, 32]} />
+                <torusGeometry args={[0.13, 0.02, 16, 32]} />
                 <meshBasicMaterial 
-                  color="#ffd89b" 
+                  color="#ffb347" 
                   transparent 
-                  opacity={0.4}
+                  opacity={0.6}
                 />
               </mesh>
               
-              {/* Lower Leg (Shin) - warm beige */}
+              {/* Lower Leg (Shin) - refined skin tone */}
               <group position={[0, -0.25, 0]}>
                 <mesh>
                   <cylinderGeometry args={[0.07, 0.06, 0.5, 32]} />
                   <meshStandardMaterial 
-                    color="#c4a788" 
-                    roughness={0.5}
-                    metalness={0.05}
+                    color="#d4b5a0" 
+                    roughness={0.4}
+                    metalness={0.08}
                   />
                 </mesh>
                 
@@ -390,35 +448,35 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         <group position={leftLegPosition}>
           {/* Hip Joint - rotation point for upper leg */}
           <group ref={leftUpperLegRef} rotation={hipRotation}>
-            {/* Upper Leg (Thigh) */}
+            {/* Upper Leg (Thigh) - refined skin tone */}
             <mesh position={[0, -0.25, 0]}>
               <cylinderGeometry args={[0.08, 0.07, 0.5, 32]} />
               <meshStandardMaterial 
-                color="#c4a788" 
-                roughness={0.5}
-                metalness={0.05}
+                color="#d4b5a0" 
+                roughness={0.4}
+                metalness={0.08}
               />
             </mesh>
             
-            {/* Knee Joint */}
+            {/* Knee Joint - subtle styling */}
             <group ref={leftKneeRef} position={[0, -0.5, 0]}>
               <mesh>
                 <sphereGeometry args={[0.11, 32, 32]} />
                 <meshStandardMaterial 
-                  color="#a89277" 
-                  roughness={0.3}
-                  metalness={0.1}
+                  color="#b8a18a" 
+                  roughness={0.25}
+                  metalness={0.15}
                 />
               </mesh>
               
-              {/* Lower Leg (Shin) */}
+              {/* Lower Leg (Shin) - refined skin tone */}
               <group position={[0, -0.25, 0]}>
                 <mesh>
                   <cylinderGeometry args={[0.07, 0.06, 0.5, 32]} />
                   <meshStandardMaterial 
-                    color="#c4a788" 
-                    roughness={0.5}
-                    metalness={0.05}
+                    color="#d4b5a0" 
+                    roughness={0.4}
+                    metalness={0.08}
                   />
                 </mesh>
                 
@@ -435,31 +493,31 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
           </group>
         </group>
 
-        {/* Enhanced floor with gradient effect */}
+        {/* Professional floor with clean design */}
         <mesh 
           rotation={[-Math.PI / 2, 0, 0]} 
           position={[0, floorYPosition, 0]}
         >
-          <circleGeometry args={[2.5, 64]} />
+          <circleGeometry args={[3, 64]} />
           <meshStandardMaterial 
-            color="#e8eff5" 
-            roughness={0.9}
-            metalness={0.05}
-            opacity={0.95} 
+            color="#f5f7fa" 
+            roughness={0.8}
+            metalness={0.1}
+            opacity={0.98} 
             transparent 
           />
         </mesh>
         
-        {/* Subtle grid pattern on floor */}
+        {/* Refined grid pattern on floor */}
         <mesh 
           rotation={[-Math.PI / 2, 0, 0]} 
           position={[0, floorYPosition + 0.001, 0]}
         >
-          <circleGeometry args={[2.5, 64]} />
+          <circleGeometry args={[3, 64]} />
           <meshBasicMaterial 
-            color="#d0dde8" 
+            color="#cfd8e3" 
             wireframe 
-            opacity={0.15} 
+            opacity={0.2} 
             transparent 
           />
         </mesh>
