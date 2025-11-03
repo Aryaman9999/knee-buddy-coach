@@ -221,27 +221,28 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
   let pelvisPosition: [number, number, number] = [0, 0, 0];
   let hipRotation: [number, number, number] = [0, 0, 0];
   let floorYPosition = -1.25;
+  let bedPosition: [number, number, number] = [0, -0.1, 0];
 
   if (pose === 'lying') {
     // Lie flat on the "bed"
-    pelvisRotation = [-Math.PI / 2, 0, 0]; // Rotate whole body 90deg
-    pelvisPosition = [0, 0.2, 0]; // Position on top of the bed
-    hipRotation = [0, 0, 0]; // Legs are straight
-    floorYPosition = -0.1; // Move floor up to act as bed
+    pelvisRotation = [-Math.PI / 2, 0, 0]; // Rotate whole body 90deg forward
+    pelvisPosition = [0, 0.1, 0]; // Position on bed
+    hipRotation = [0, 0, 0]; // Legs straight relative to pelvis
+    bedPosition = [0, -0.1, 0]; // Bed directly below
+    floorYPosition = -0.3; // Raise floor to act as bed surface
   } else if (pose === 'sitting') {
     // Sit on the "stool"
-    pelvisRotation = [0, 0, 0]; // Pelvis is upright
-    pelvisPosition = [0, 0.6, 0.1]; // Position on top of the stool
-    hipRotation = [-Math.PI / 2, 0, 0]; // Legs bent 90deg at hip
-    floorYPosition = -0.5; // Floor is lower
+    pelvisRotation = [0, 0, 0]; // Pelvis upright
+    pelvisPosition = [0, 0.4, 0]; // Sit on stool
+    hipRotation = [Math.PI / 2, 0, 0]; // Legs bent 90deg down
+    floorYPosition = -0.5; // Lower floor for feet
   } else if (pose === 'standing') {
     // Stand upright on the floor
-    pelvisRotation = [0, 0, 0]; // Pelvis is upright
-    pelvisPosition = [0, 0.5, 0]; // Position above floor
-    hipRotation = [0, 0, 0]; // Legs are straight down
+    pelvisRotation = [0, 0, 0]; // Pelvis upright
+    pelvisPosition = [0, 0, 0]; // Stand on floor
+    hipRotation = [0, 0, 0]; // Legs straight down
     floorYPosition = -1.25; // Normal floor position
   }
-  // Default uses standing values
 
   const rightLegPosition: [number, number, number] = [0.15, -0.125, 0];
   const leftLegPosition: [number, number, number] = [-0.15, -0.125, 0];
@@ -275,9 +276,9 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
       {/* Reference platform (bed) for lying exercises */}
       <mesh
         visible={pose === 'lying'}
-        position={[0, 0, -0.5]}
+        position={bedPosition}
       >
-        <boxGeometry args={[1, 0.2, 2.5]} />
+        <boxGeometry args={[1.2, 0.15, 2]} />
         <meshStandardMaterial
           color="#d0dde8"
           roughness={0.8}
@@ -288,9 +289,9 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
       {/* Reference platform (stool) for sitting exercises */}
       <mesh
         visible={pose === 'sitting'}
-        position={[0, 0.2, 0.1]}
+        position={[0, 0, 0]}
       >
-        <boxGeometry args={[0.5, 0.4, 0.5]} />
+        <boxGeometry args={[0.6, 0.4, 0.6]} />
         <meshStandardMaterial
           color="#a89277"
           roughness={0.6}
@@ -301,10 +302,10 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
       {/* Rolled towel support for Short Arc Quads (exercise 5) */}
       <mesh
         visible={pose === 'lying' && exerciseId === '5'}
-        position={[0.15, -0.3, 0]}
+        position={[0.15, -0.15, -0.3]}
         rotation={[0, 0, Math.PI / 2]}
       >
-        <cylinderGeometry args={[0.08, 0.08, 0.3, 16]} />
+        <cylinderGeometry args={[0.08, 0.08, 0.35, 16]} />
         <meshStandardMaterial
           color="#e8d5c4"
           roughness={0.7}
