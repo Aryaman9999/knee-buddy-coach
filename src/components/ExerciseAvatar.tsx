@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Mesh, Group, Quaternion, Euler, Vector3 } from "three";
+import { Mesh, Group, Quaternion, Euler, Vector3, BoxGeometry } from "three";
 import { SensorPacket } from "@/types/sensorData";
 import { sensorDataMapper } from "@/utils/sensorDataMapper";
 import AngleIndicator from "./AngleIndicator";
@@ -41,16 +41,18 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
   const [kneeWorldPosition, setKneeWorldPosition] = useState(new Vector3(0.3, 0, 0.3));
 
   const animationSpeed = 2;
+  
+  // Refs for foot/ankle visualization
+  const rightFootRef = useRef<Mesh>(null);
+  const leftFootRef = useRef<Mesh>(null);
 
   // Helper to convert quaternion to angle in degrees
-  // Handles multiple axes to avoid sensor mounting orientation issues
   const quaternionToAngle = (quaternion: Quaternion): number => {
     const euler = new Euler().setFromQuaternion(quaternion);
     const xAngle = Math.abs((euler.x * 180) / Math.PI);
     const yAngle = Math.abs((euler.y * 180) / Math.PI);
     const zAngle = Math.abs((euler.z * 180) / Math.PI);
     
-    // Return the largest angle (primary flexion axis)
     return Math.max(xAngle, yAngle, zAngle);
   };
 
@@ -123,8 +125,8 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
     }
 
     // Demo mode: Use animated demo with slower speed for better learning
-    const animationSpeed = mode === 'demo' ? 0.5 : 1.0;
-    const time = state.clock.getElapsedTime() * animationSpeed;
+    const demoSpeed = mode === 'demo' ? 0.6 : 1.0;
+    const time = state.clock.getElapsedTime() * demoSpeed;
 
     // Helper to create quaternion from euler angles
     const createQuaternion = (x: number, y: number, z: number) => {
@@ -132,71 +134,143 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
       return new Quaternion().setFromEuler(euler);
     };
 
+    // Smooth easing function for more natural movements
+    const smoothStep = (t: number) => t * t * (3 - 2 * t);
+
     // Animation based on exercise type using quaternions
     switch (exerciseId) {
-      case "1": // Heel Slides (Lying)
+      case "1": // Heel Slides (Lying) - Slide heel toward buttocks
         if (rightUpperLegRef.current && rightKneeRef.current) {
-          const slide = (Math.sin(time) * 0.5 + 0.5) * (Math.PI / 2); // 0 to 90 deg
-          // Flex hip
-          rightUpperLegRef.current.quaternion.copy(createQuaternion(slide, 0, 0));
-          // Flex knee
-          rightKneeRef.current.quaternion.copy(createQuaternion(slide, 0, 0));
-        }
-        break;
-
-      case "2": // Quad Sets (Lying)
-        // This is an isometric exercise. No joint movement.
-        // We will "pulse" the thigh material to show contraction.
-        if (rightUpperLegRef.current) {
-          const pulse = Math.abs(Math.sin(time)) * 0.5;
-          const thighMesh = rightUpperLegRef.current.children[0] as Mesh;
-          if (thighMesh && thighMesh.material) {
-            (thighMesh.material as any).emissiveIntensity = pulse;
-            (thighMesh.material as any).emissive.set("#ffd89b");
+          const progress = (Math.sin(time) * 0.5 + 0.5);
+          const smoothProgress = smoothStep(progress);
+          const slideAngle = smoothProgress * (Math.PI / 2); // 0 to 90 degrees
+          
+          // Hip flexion - bring thigh up
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(slideAngle * 0.7, 0, 0));
+          // Knee flexion - bend knee more than hip
+          rightKneeRef.current.quaternion.copy(createQuaternion(slideAngle * 1.3, 0, 0));
+          
+          // Foot stays neutral
+          if (rightFootRef.current) {
+            rightFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
           }
         }
         break;
 
-      case "3": // Straight Leg Raises (Lying)
+      case "2": // Quad Sets (Lying) - Isometric quadriceps contraction
+        if (rightUpperLegRef.current && leftUpperLegRef.current) {
+          const pulse = Math.sin(time * 1.5) * 0.5 + 0.5;
+          
+          // Pulse both thighs to show bilateral contraction
+          const rightThighMesh = rightUpperLegRef.current.children[0] as Mesh;
+          const leftThighMesh = leftUpperLegRef.current.children[0] as Mesh;
+          
+          [rightThighMesh, leftThighMesh].forEach(mesh => {
+            if (mesh && mesh.material) {
+              (mesh.material as any).emissiveIntensity = pulse * 0.4;
+              (mesh.material as any).emissive.set("#ffd89b");
+            }
+          });
+          
+          // Slight knee press down to show muscle engagement
+          if (rightKneeRef.current) {
+            const press = Math.sin(time * 1.5) * 0.05;
+            rightKneeRef.current.quaternion.copy(createQuaternion(-press, 0, 0));
+          }
+          if (leftKneeRef.current) {
+            const press = Math.sin(time * 1.5) * 0.05;
+            leftKneeRef.current.quaternion.copy(createQuaternion(-press, 0, 0));
+          }
+        }
+        break;
+
+      case "3": // Straight Leg Raises (Lying) - Lift entire straight leg
         if (rightUpperLegRef.current && rightKneeRef.current) {
-          const raise = (Math.sin(time) * 0.5 + 0.5) * (Math.PI / 4); // 0 to 45 deg
-          // Raise straight leg from hip
-          rightUpperLegRef.current.quaternion.copy(createQuaternion(-raise, 0, 0));
-          // Keep knee straight
+          const progress = (Math.sin(time) * 0.5 + 0.5);
+          const smoothProgress = smoothStep(progress);
+          const raiseAngle = smoothProgress * (Math.PI / 4); // 0 to 45 degrees
+          
+          // Raise entire leg from hip, keep knee locked straight
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(-raiseAngle, 0, 0));
           rightKneeRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-        }
-        break;
-
-      case "4": // Ankle Pumps (Lying)
-        // This animates the foot, not the knee.
-        if (rightKneeRef.current) {
-          const footMesh = rightKneeRef.current.getObjectByName("right_foot") as Mesh;
-          if (footMesh) {
-            const pump = Math.sin(time * 2) * 0.4; // Back and forth
-            footMesh.quaternion.copy(createQuaternion(pump, 0, 0));
+          
+          // Keep foot in neutral position
+          if (rightFootRef.current) {
+            rightFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
           }
         }
         break;
 
-    case "5": // Short Arc Quads (Lying with support under knee)
-      if (rightKneeRef.current && rightUpperLegRef.current) {
-        // Thigh stays on support (slight hip flexion)
-        rightUpperLegRef.current.quaternion.copy(createQuaternion(0.3, 0, 0));
-        // Extend lower leg from bent to straight (lifting heel off floor)
-        const extension = (Math.sin(time) * 0.5 + 0.5) * (Math.PI / 3); // 0 to 60 deg
-        rightKneeRef.current.quaternion.copy(createQuaternion(-extension, 0, 0));
-      }
-      break;
+      case "4": // Ankle Pumps (Lying) - ENHANCED with clear dorsiflexion/plantarflexion
+        if (rightKneeRef.current && leftKneeRef.current && rightFootRef.current && leftFootRef.current) {
+          // More pronounced ankle movement with faster pumping
+          const progress = Math.sin(time * 2.5); // Faster oscillation
+          const pumpAngle = progress * 0.7; // Larger range: -40° to +40°
+          
+          // Legs stay flat on bed
+          rightUpperLegRef.current?.quaternion.copy(createQuaternion(0, 0, 0));
+          leftUpperLegRef.current?.quaternion.copy(createQuaternion(0, 0, 0));
+          rightKneeRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+          leftKneeRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+          
+          // Bilateral foot pumping - both feet move together
+          // Negative = Dorsiflexion (toes toward shin)
+          // Positive = Plantarflexion (toes point away)
+          rightFootRef.current.quaternion.copy(createQuaternion(pumpAngle, 0, 0));
+          leftFootRef.current.quaternion.copy(createQuaternion(pumpAngle, 0, 0));
+          
+          // Visual pulse on feet to emphasize movement
+          const footMeshes = [
+            rightFootRef.current,
+            leftFootRef.current
+          ];
+          footMeshes.forEach(foot => {
+            if (foot && foot.material) {
+              const intensity = Math.abs(progress) * 0.3;
+              (foot.material as any).emissiveIntensity = intensity;
+              (foot.material as any).emissive.set("#88c0f0");
+            }
+          });
+        }
+        break;
 
-    case "6": // Hamstring Curls (Standing)
-      if (rightKneeRef.current && rightUpperLegRef.current) {
-        // Keep thigh vertical (no hip movement)
-        rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-        // Curl lower leg backward (bring heel toward buttocks)
-        const curl = (Math.sin(time) * 0.5 + 0.5) * (Math.PI / 2); // 0 to 90 deg
-        rightKneeRef.current.quaternion.copy(createQuaternion(curl, 0, 0));
-      }
-      break;
+      case "5": // Short Arc Quads (Lying with support) - Straighten knee from bent position
+        if (rightKneeRef.current && rightUpperLegRef.current) {
+          const progress = (Math.sin(time) * 0.5 + 0.5);
+          const smoothProgress = smoothStep(progress);
+          
+          // Thigh stays on support (fixed hip flexion)
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(0.35, 0, 0));
+          
+          // Extend lower leg: from bent (60°) to straight (0°)
+          const extensionAngle = (1 - smoothProgress) * (Math.PI / 3);
+          rightKneeRef.current.quaternion.copy(createQuaternion(extensionAngle, 0, 0));
+          
+          // Foot stays in neutral
+          if (rightFootRef.current) {
+            rightFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+          }
+        }
+        break;
+
+      case "6": // Hamstring Curls (Standing) - Curl heel toward buttocks
+        if (rightKneeRef.current && rightUpperLegRef.current) {
+          const progress = (Math.sin(time) * 0.5 + 0.5);
+          const smoothProgress = smoothStep(progress);
+          const curlAngle = smoothProgress * (Math.PI / 2); // 0 to 90 degrees
+          
+          // Thigh stays vertical (no hip movement)
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+          
+          // Curl lower leg backward (knee flexion)
+          rightKneeRef.current.quaternion.copy(createQuaternion(curlAngle, 0, 0));
+          
+          // Foot flexes slightly during curl
+          if (rightFootRef.current) {
+            rightFootRef.current.quaternion.copy(createQuaternion(curlAngle * 0.2, 0, 0));
+          }
+        }
+        break;
     }
 
     // Update current knee angle for visualization
@@ -224,24 +298,24 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
   let bedPosition: [number, number, number] = [0, -0.1, 0];
 
   if (pose === 'lying') {
-    // Lie flat on the "bed"
-    pelvisRotation = [-Math.PI / 2, 0, 0]; // Rotate whole body 90deg forward
-    pelvisPosition = [0, 0.1, 0]; // Position on bed
+    // Lie flat on the therapy bed
+    pelvisRotation = [-Math.PI / 2, 0, 0]; // Rotate body horizontal
+    pelvisPosition = [0, 0.15, 0]; // Raised above bed for visibility
     hipRotation = [0, 0, 0]; // Legs straight relative to pelvis
-    bedPosition = [0, -0.1, 0]; // Bed directly below
-    floorYPosition = -0.3; // Raise floor to act as bed surface
+    bedPosition = [0, -0.05, 0]; // Bed positioned below body
+    floorYPosition = -0.25; // Raised floor to act as bed surface
   } else if (pose === 'sitting') {
-    // Sit on the chair - pelvis on seat, legs hanging down
+    // Sit on chair with proper posture
     pelvisRotation = [0, 0, 0]; // Pelvis upright
-    pelvisPosition = [0, 0.65, 0]; // Sit on chair seat (raised higher)
-    hipRotation = [Math.PI / 2, 0, 0]; // Legs bent 90deg down
-    floorYPosition = -1.25; // Normal floor for feet to rest
+    pelvisPosition = [0, 0.7, 0]; // Seated on chair
+    hipRotation = [Math.PI / 2.2, 0, 0]; // Legs bent naturally at ~80 degrees
+    floorYPosition = -1.25; // Normal floor for feet
   } else if (pose === 'standing') {
-    // Stand upright on the floor
+    // Stand upright with proper alignment
     pelvisRotation = [0, 0, 0]; // Pelvis upright
-    pelvisPosition = [0, 0, 0]; // Stand on floor
+    pelvisPosition = [0, 0, 0]; // Standing on floor
     hipRotation = [0, 0, 0]; // Legs straight down
-    floorYPosition = -1.25; // Normal floor position
+    floorYPosition = -1.25; // Normal floor
   }
 
   const rightLegPosition: [number, number, number] = [0.15, -0.125, 0];
@@ -281,95 +355,108 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         color="#f0f4f8"
       />
 
-      {/* Professional therapy bed for lying exercises - semi-transparent for visibility */}
+      {/* Professional therapy bed for lying exercises - highly transparent */}
       <mesh
         visible={pose === 'lying'}
         position={bedPosition}
       >
-        <boxGeometry args={[1.2, 0.12, 2]} />
+        <boxGeometry args={[1.3, 0.1, 2.2]} />
         <meshStandardMaterial
-          color="#d4e3f0"
-          roughness={0.5}
-          metalness={0.1}
+          color="#c8ddf2"
+          roughness={0.4}
+          metalness={0.15}
           transparent={true}
-          opacity={0.7}
+          opacity={0.4}
         />
       </mesh>
+      
+      {/* Bed outline for better visibility */}
+      <lineSegments visible={pose === 'lying'} position={bedPosition}>
+        <edgesGeometry args={[new BoxGeometry(1.3, 0.1, 2.2)]} />
+        <lineBasicMaterial color="#8fb8dc" transparent opacity={0.6} />
+      </lineSegments>
 
-      {/* Chair for sitting exercises */}
+      {/* Professional therapy chair for sitting exercises */}
       <group visible={pose === 'sitting'}>
-        {/* Chair seat - professional design */}
-        <mesh position={[0, 0.4, 0]}>
-          <boxGeometry args={[0.5, 0.08, 0.5]} />
+        {/* Chair seat - padded appearance */}
+        <mesh position={[0, 0.45, 0]}>
+          <boxGeometry args={[0.55, 0.1, 0.55]} />
           <meshStandardMaterial
-            color="#705940"
-            roughness={0.4}
-            metalness={0.15}
+            color="#6b5644"
+            roughness={0.6}
+            metalness={0.05}
           />
         </mesh>
         
-        {/* Chair back */}
-        <mesh position={[0, 0.75, -0.22]}>
-          <boxGeometry args={[0.5, 0.65, 0.08]} />
+        {/* Seat padding edge */}
+        <mesh position={[0, 0.51, 0]}>
+          <boxGeometry args={[0.53, 0.02, 0.53]} />
           <meshStandardMaterial
-            color="#705940"
-            roughness={0.4}
-            metalness={0.15}
+            color="#8a7460"
+            roughness={0.7}
+            metalness={0.05}
           />
         </mesh>
         
-        {/* Chair legs - front left */}
-        <mesh position={[-0.18, 0.15, 0.18]}>
-          <cylinderGeometry args={[0.025, 0.025, 0.3, 16]} />
+        {/* Chair back - tall and supportive */}
+        <mesh position={[0, 0.85, -0.25]}>
+          <boxGeometry args={[0.55, 0.75, 0.1]} />
           <meshStandardMaterial
-            color="#5a4730"
-            roughness={0.5}
-            metalness={0.1}
+            color="#6b5644"
+            roughness={0.6}
+            metalness={0.05}
           />
         </mesh>
         
-        {/* Chair legs - front right */}
-        <mesh position={[0.18, 0.15, 0.18]}>
-          <cylinderGeometry args={[0.025, 0.025, 0.3, 16]} />
+        {/* Back padding */}
+        <mesh position={[0, 0.85, -0.19]}>
+          <boxGeometry args={[0.53, 0.7, 0.04]} />
           <meshStandardMaterial
-            color="#5a4730"
-            roughness={0.5}
-            metalness={0.1}
+            color="#8a7460"
+            roughness={0.7}
+            metalness={0.05}
           />
         </mesh>
         
-        {/* Chair legs - back left */}
-        <mesh position={[-0.18, 0.15, -0.18]}>
-          <cylinderGeometry args={[0.025, 0.025, 0.3, 16]} />
-          <meshStandardMaterial
-            color="#5a4730"
-            roughness={0.5}
-            metalness={0.1}
-          />
-        </mesh>
+        {/* Chair legs with realistic proportions */}
+        {[
+          [-0.22, 0.2, 0.22],   // front left
+          [0.22, 0.2, 0.22],    // front right
+          [-0.22, 0.2, -0.22],  // back left
+          [0.22, 0.2, -0.22]    // back right
+        ].map((pos, i) => (
+          <mesh key={i} position={pos as [number, number, number]}>
+            <cylinderGeometry args={[0.03, 0.025, 0.4, 16]} />
+            <meshStandardMaterial
+              color="#4a3828"
+              roughness={0.5}
+              metalness={0.1}
+            />
+          </mesh>
+        ))}
         
-        {/* Chair legs - back right */}
-        <mesh position={[0.18, 0.15, -0.18]}>
-          <cylinderGeometry args={[0.025, 0.025, 0.3, 16]} />
-          <meshStandardMaterial
-            color="#5a4730"
-            roughness={0.5}
-            metalness={0.1}
-          />
+        {/* Chair cross supports for stability */}
+        <mesh position={[0, 0.1, 0.22]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.02, 0.02, 0.44, 12]} />
+          <meshStandardMaterial color="#4a3828" />
+        </mesh>
+        <mesh position={[0, 0.1, -0.22]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.02, 0.02, 0.44, 12]} />
+          <meshStandardMaterial color="#4a3828" />
         </mesh>
       </group>
 
-      {/* Foam roll support for Short Arc Quads (exercise 5) */}
+      {/* Foam roll support for Short Arc Quads (exercise 5) - under knee */}
       <mesh
         visible={pose === 'lying' && exerciseId === '5'}
-        position={[0.15, -0.15, -0.3]}
+        position={[0.15, -0.1, -0.35]}
         rotation={[0, 0, Math.PI / 2]}
       >
-        <cylinderGeometry args={[0.08, 0.08, 0.35, 16]} />
+        <cylinderGeometry args={[0.09, 0.09, 0.35, 20]} />
         <meshStandardMaterial
-          color="#f0e5d8"
-          roughness={0.6}
-          metalness={0.08}
+          color="#e8dcc8"
+          roughness={0.7}
+          metalness={0.05}
         />
       </mesh>
 
@@ -433,12 +520,38 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
                   />
                 </mesh>
                 
-                {/* Foot indicator */}
-                <mesh name="right_foot" position={[0, -0.3, 0.05]}>
-                  <boxGeometry args={[0.08, 0.04, 0.12]} />
+                {/* Ankle joint visualization */}
+                <mesh position={[0, -0.5, 0]}>
+                  <sphereGeometry args={[0.08, 24, 24]} />
                   <meshStandardMaterial 
                     color="#d4a88a" 
+                    roughness={0.4}
+                    metalness={0.05}
+                  />
+                </mesh>
+                
+                {/* Foot with enhanced visibility for ankle pumps */}
+                <mesh 
+                  ref={rightFootRef}
+                  name="right_foot" 
+                  position={[0, -0.55, 0.08]}
+                >
+                  <boxGeometry args={[0.1, 0.06, 0.18]} />
+                  <meshStandardMaterial 
+                    color="#c49a7a" 
                     roughness={0.5}
+                    metalness={0.05}
+                    emissive="#88c0f0"
+                    emissiveIntensity={0}
+                  />
+                </mesh>
+                
+                {/* Toes for realistic foot appearance */}
+                <mesh position={[0, -0.55, 0.18]}>
+                  <boxGeometry args={[0.09, 0.04, 0.04]} />
+                  <meshStandardMaterial 
+                    color="#c49a7a" 
+                    roughness={0.6}
                   />
                 </mesh>
               </group>
@@ -482,12 +595,38 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
                   />
                 </mesh>
                 
-                {/* Foot indicator */}
-                <mesh name="left_foot" position={[0, -0.3, 0.05]}>
-                  <boxGeometry args={[0.08, 0.04, 0.12]} />
+                {/* Left ankle joint */}
+                <mesh position={[0, -0.5, 0]}>
+                  <sphereGeometry args={[0.08, 24, 24]} />
                   <meshStandardMaterial 
                     color="#d4a88a" 
+                    roughness={0.4}
+                    metalness={0.05}
+                  />
+                </mesh>
+                
+                {/* Left foot with enhanced visibility */}
+                <mesh 
+                  ref={leftFootRef}
+                  name="left_foot" 
+                  position={[0, -0.55, 0.08]}
+                >
+                  <boxGeometry args={[0.1, 0.06, 0.18]} />
+                  <meshStandardMaterial 
+                    color="#c49a7a" 
                     roughness={0.5}
+                    metalness={0.05}
+                    emissive="#88c0f0"
+                    emissiveIntensity={0}
+                  />
+                </mesh>
+                
+                {/* Left toes */}
+                <mesh position={[0, -0.55, 0.18]}>
+                  <boxGeometry args={[0.09, 0.04, 0.04]} />
+                  <meshStandardMaterial 
+                    color="#c49a7a" 
+                    roughness={0.6}
                   />
                 </mesh>
               </group>
