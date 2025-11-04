@@ -281,38 +281,40 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         color="#f0f4f8"
       />
 
-      {/* Professional therapy bed for lying exercises */}
+      {/* Professional therapy bed for lying exercises - semi-transparent for visibility */}
       <mesh
         visible={pose === 'lying'}
         position={bedPosition}
       >
-        <boxGeometry args={[1.2, 0.15, 2]} />
+        <boxGeometry args={[1.2, 0.12, 2]} />
         <meshStandardMaterial
-          color="#e8eef5"
-          roughness={0.6}
-          metalness={0.15}
+          color="#d4e3f0"
+          roughness={0.5}
+          metalness={0.1}
+          transparent={true}
+          opacity={0.7}
         />
       </mesh>
 
       {/* Chair for sitting exercises */}
       <group visible={pose === 'sitting'}>
-        {/* Chair seat */}
+        {/* Chair seat - professional design */}
         <mesh position={[0, 0.4, 0]}>
           <boxGeometry args={[0.5, 0.08, 0.5]} />
           <meshStandardMaterial
-            color="#8b6f47"
+            color="#705940"
             roughness={0.4}
-            metalness={0.2}
+            metalness={0.15}
           />
         </mesh>
         
         {/* Chair back */}
-        <mesh position={[0, 0.7, -0.22]}>
-          <boxGeometry args={[0.5, 0.6, 0.08]} />
+        <mesh position={[0, 0.75, -0.22]}>
+          <boxGeometry args={[0.5, 0.65, 0.08]} />
           <meshStandardMaterial
-            color="#8b6f47"
+            color="#705940"
             roughness={0.4}
-            metalness={0.2}
+            metalness={0.15}
           />
         </mesh>
         
@@ -320,7 +322,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         <mesh position={[-0.18, 0.15, 0.18]}>
           <cylinderGeometry args={[0.025, 0.025, 0.3, 16]} />
           <meshStandardMaterial
-            color="#6b5434"
+            color="#5a4730"
             roughness={0.5}
             metalness={0.1}
           />
@@ -330,7 +332,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         <mesh position={[0.18, 0.15, 0.18]}>
           <cylinderGeometry args={[0.025, 0.025, 0.3, 16]} />
           <meshStandardMaterial
-            color="#6b5434"
+            color="#5a4730"
             roughness={0.5}
             metalness={0.1}
           />
@@ -340,7 +342,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         <mesh position={[-0.18, 0.15, -0.18]}>
           <cylinderGeometry args={[0.025, 0.025, 0.3, 16]} />
           <meshStandardMaterial
-            color="#6b5434"
+            color="#5a4730"
             roughness={0.5}
             metalness={0.1}
           />
@@ -350,7 +352,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         <mesh position={[0.18, 0.15, -0.18]}>
           <cylinderGeometry args={[0.025, 0.025, 0.3, 16]} />
           <meshStandardMaterial
-            color="#6b5434"
+            color="#5a4730"
             roughness={0.5}
             metalness={0.1}
           />
@@ -372,13 +374,13 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
       </mesh>
 
       <group ref={groupRef} position={[0, 0, 0]} rotation={pelvisRotation}>
-        {/* Lower Back / Pelvis - professional blue tone */}
+        {/* Lower Back / Pelvis - professional medical blue */}
         <mesh ref={pelvisMeshRef} position={pelvisPosition}>
           <boxGeometry args={[0.4, 0.25, 0.2]} />
           <meshStandardMaterial 
-            color="#5b9fd8" 
-            roughness={0.3}
-            metalness={0.15}
+            color="#4a8fd5" 
+            roughness={0.35}
+            metalness={0.2}
           />
         </mesh>
 
@@ -386,48 +388,48 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         <group position={rightLegPosition}>
           {/* Hip Joint - rotation point for upper leg */}
           <group ref={rightUpperLegRef} rotation={hipRotation}>
-            {/* Upper Leg (Thigh) - refined skin tone */}
+            {/* Upper Leg (Thigh) - natural skin tone */}
             <mesh position={[0, -0.25, 0]}>
               <cylinderGeometry args={[0.08, 0.07, 0.5, 32]} />
               <meshStandardMaterial 
-                color="#d4b5a0" 
-                roughness={0.4}
-                metalness={0.08}
+                color="#e8c8a8" 
+                roughness={0.45}
+                metalness={0.05}
               />
             </mesh>
             
             {/* Knee Joint - highlighted with glow */}
             <group ref={rightKneeRef} position={[0, -0.5, 0]}>
-              {/* Main knee sphere - enhanced highlight */}
+              {/* Main knee sphere - professional highlight */}
               <mesh>
                 <sphereGeometry args={[0.11, 32, 32]} />
                 <meshStandardMaterial 
-                  color="#b8a18a" 
-                  roughness={0.25}
-                  metalness={0.15}
-                  emissive="#ffb347"
-                  emissiveIntensity={0.25}
+                  color="#d4a88a" 
+                  roughness={0.3}
+                  metalness={0.1}
+                  emissive="#ff9547"
+                  emissiveIntensity={0.3}
                 />
               </mesh>
               
-              {/* Glow ring around knee - stronger emphasis */}
+              {/* Glow ring around knee - clear emphasis */}
               <mesh rotation={[Math.PI / 2, 0, 0]}>
-                <torusGeometry args={[0.13, 0.02, 16, 32]} />
+                <torusGeometry args={[0.13, 0.025, 16, 32]} />
                 <meshBasicMaterial 
-                  color="#ffb347" 
+                  color="#ff9547" 
                   transparent 
-                  opacity={0.6}
+                  opacity={0.7}
                 />
               </mesh>
               
-              {/* Lower Leg (Shin) - refined skin tone */}
+              {/* Lower Leg (Shin) - natural skin tone */}
               <group position={[0, -0.25, 0]}>
                 <mesh>
                   <cylinderGeometry args={[0.07, 0.06, 0.5, 32]} />
                   <meshStandardMaterial 
-                    color="#d4b5a0" 
-                    roughness={0.4}
-                    metalness={0.08}
+                    color="#e8c8a8" 
+                    roughness={0.45}
+                    metalness={0.05}
                   />
                 </mesh>
                 
@@ -435,8 +437,8 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
                 <mesh name="right_foot" position={[0, -0.3, 0.05]}>
                   <boxGeometry args={[0.08, 0.04, 0.12]} />
                   <meshStandardMaterial 
-                    color="#b39677" 
-                    roughness={0.6}
+                    color="#d4a88a" 
+                    roughness={0.5}
                   />
                 </mesh>
               </group>
@@ -448,13 +450,13 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         <group position={leftLegPosition}>
           {/* Hip Joint - rotation point for upper leg */}
           <group ref={leftUpperLegRef} rotation={hipRotation}>
-            {/* Upper Leg (Thigh) - refined skin tone */}
+            {/* Upper Leg (Thigh) - natural skin tone */}
             <mesh position={[0, -0.25, 0]}>
               <cylinderGeometry args={[0.08, 0.07, 0.5, 32]} />
               <meshStandardMaterial 
-                color="#d4b5a0" 
-                roughness={0.4}
-                metalness={0.08}
+                color="#e8c8a8" 
+                roughness={0.45}
+                metalness={0.05}
               />
             </mesh>
             
@@ -463,20 +465,20 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
               <mesh>
                 <sphereGeometry args={[0.11, 32, 32]} />
                 <meshStandardMaterial 
-                  color="#b8a18a" 
-                  roughness={0.25}
-                  metalness={0.15}
+                  color="#d4a88a" 
+                  roughness={0.3}
+                  metalness={0.1}
                 />
               </mesh>
               
-              {/* Lower Leg (Shin) - refined skin tone */}
+              {/* Lower Leg (Shin) - natural skin tone */}
               <group position={[0, -0.25, 0]}>
                 <mesh>
                   <cylinderGeometry args={[0.07, 0.06, 0.5, 32]} />
                   <meshStandardMaterial 
-                    color="#d4b5a0" 
-                    roughness={0.4}
-                    metalness={0.08}
+                    color="#e8c8a8" 
+                    roughness={0.45}
+                    metalness={0.05}
                   />
                 </mesh>
                 
@@ -484,8 +486,8 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
                 <mesh name="left_foot" position={[0, -0.3, 0.05]}>
                   <boxGeometry args={[0.08, 0.04, 0.12]} />
                   <meshStandardMaterial 
-                    color="#b39677" 
-                    roughness={0.6}
+                    color="#d4a88a" 
+                    roughness={0.5}
                   />
                 </mesh>
               </group>

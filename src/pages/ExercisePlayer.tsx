@@ -134,7 +134,7 @@ const ExercisePlayer = () => {
   // Show disconnected warning when in live mode without sensors
   useEffect(() => {
     if (exercisePhase === 'live' && !isSensorConnected) {
-      setFeedback("⚠️ Sensors disconnected. Reps are not being counted. Please reconnect.");
+      setFeedback("⚠️ WARNING: Sensors disconnected - Reps are NOT being counted. Please reconnect!");
     }
   }, [exercisePhase, isSensorConnected]);
 
@@ -283,11 +283,23 @@ const ExercisePlayer = () => {
       {/* Feedback Box */}
       <div className="bg-card border-t-4 border-primary p-6">
         <div className="max-w-7xl mx-auto">
-          <Card className="bg-accent/10 border-2 border-accent">
+          <Card className={
+            feedback.includes('WARNING') || feedback.includes('disconnected') 
+              ? 'bg-destructive/20 border-2 border-destructive' 
+              : 'bg-accent/10 border-2 border-accent'
+          }>
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="h-4 w-4 bg-success rounded-full animate-pulse"></div>
-                <p className="text-3xl font-semibold text-accent-foreground">{feedback}</p>
+                <div className={
+                  feedback.includes('WARNING') || feedback.includes('disconnected')
+                    ? 'h-4 w-4 bg-destructive rounded-full animate-pulse'
+                    : 'h-4 w-4 bg-success rounded-full animate-pulse'
+                }></div>
+                <p className={
+                  feedback.includes('WARNING') || feedback.includes('disconnected')
+                    ? 'text-3xl font-bold text-destructive'
+                    : 'text-3xl font-semibold text-foreground'
+                }>{feedback}</p>
               </div>
             </CardContent>
           </Card>
