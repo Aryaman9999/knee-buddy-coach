@@ -163,19 +163,25 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
           
           // Keep leg straight out in front
           rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-          rightKneeRef.current.quaternion.copy(createQuaternion(0, 0, 0));
           
-          // Pulse thigh to show muscle contraction
+          // Slight knee press down to show muscle engagement (very subtle)
+          // This represents pushing the back of the knee down
+          const press = pulse * 0.08; // Subtle downward press
+          rightKneeRef.current.quaternion.copy(createQuaternion(-press, 0, 0));
+          
+          // Pulse thigh to show muscle contraction - more intense
           const rightThighMesh = rightUpperLegRef.current.children[0] as Mesh;
           
           if (rightThighMesh && rightThighMesh.material) {
-            (rightThighMesh.material as any).emissiveIntensity = pulse * 0.4;
+            // Stronger visual feedback for the contraction
+            (rightThighMesh.material as any).emissiveIntensity = pulse * 0.6;
             (rightThighMesh.material as any).emissive.set("#ffd89b");
           }
           
-          // Foot stays neutral
+          // Foot stays neutral but slight dorsiflexion during contraction
           if (rightFootRef.current) {
-            rightFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+            const footFlex = pulse * -0.15; // Slight pull toward body
+            rightFootRef.current.quaternion.copy(createQuaternion(footFlex, 0, 0));
           }
         }
         break;
