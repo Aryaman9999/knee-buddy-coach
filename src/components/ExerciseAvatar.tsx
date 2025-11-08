@@ -4,7 +4,6 @@ import { Mesh, Group, Quaternion, Euler, Vector3, BoxGeometry } from "three";
 import { SensorPacket } from "@/types/sensorData";
 import { sensorDataMapper } from "@/utils/sensorDataMapper";
 import AngleIndicator from "./AngleIndicator";
-import { Text } from "@react-three/drei";
 
 // All exercise data in one place - exported for use in ExercisePlayer
 export const exerciseDefinitions: Record<string, {
@@ -356,39 +355,6 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         color="#f0f4f8"
       />
 
-      {/* POSTURE LABEL - Clear visual indicator */}
-      <Text
-        position={[0, 2.2, 0]}
-        fontSize={0.35}
-        color="#1a73e8"
-        anchorX="center"
-        anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="#ffffff"
-        font="/fonts/Inter-Bold.woff"
-      >
-        {pose === 'lying' && '🛏️ LYING DOWN'}
-        {pose === 'sitting' && '🪑 SEATED'}
-        {pose === 'standing' && '🧍 STANDING'}
-      </Text>
-      
-      {/* POSTURE INSTRUCTION */}
-      <Text
-        position={[0, 1.85, 0]}
-        fontSize={0.18}
-        color="#5f6368"
-        anchorX="center"
-        anchorY="middle"
-        outlineWidth={0.01}
-        outlineColor="#ffffff"
-        maxWidth={3.5}
-        textAlign="center"
-      >
-        {pose === 'lying' && 'Perform this exercise while lying flat on your back'}
-        {pose === 'sitting' && 'Perform this exercise while seated in a chair'}
-        {pose === 'standing' && 'Perform this exercise while standing upright'}
-      </Text>
-
       {/* Enhanced therapy bed for lying exercises - MORE VISIBLE */}
       <group visible={pose === 'lying'}>
         {/* Main bed surface */}
@@ -516,18 +482,6 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
           metalness={0.1}
         />
       </mesh>
-      
-      {/* Label for foam roll */}
-      <Text
-        visible={pose === 'lying' && exerciseId === '5'}
-        position={[0.15, 0.15, -0.35]}
-        fontSize={0.08}
-        color="#E65100"
-        anchorX="center"
-        anchorY="middle"
-      >
-        Knee Support
-      </Text>
 
       <group ref={groupRef} position={[0, 0, 0]} rotation={pelvisRotation}>
         {/* Lower Back / Pelvis - professional medical blue */}

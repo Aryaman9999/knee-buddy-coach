@@ -237,7 +237,24 @@ const ExercisePlayer = () => {
       </div>
 
       {/* Main Exercise Visualization */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex items-center justify-center p-8 relative">
+        {/* Posture Indicator Overlay */}
+        <div className="absolute top-8 left-1/2 -translate-x-1/2 z-20 text-center">
+          <div className="bg-primary/95 text-primary-foreground px-8 py-4 rounded-2xl shadow-2xl border-4 border-primary-foreground/30 backdrop-blur-sm">
+            <div className="text-4xl mb-2">
+              {exercise.id === 1 || exercise.id === 2 || exercise.id === 3 || exercise.id === 4 || exercise.id === 5 ? '🛏️' : '🧍'}
+            </div>
+            <h3 className="text-2xl font-bold mb-1">
+              {exercise.id === 1 || exercise.id === 2 || exercise.id === 3 || exercise.id === 4 || exercise.id === 5 ? 'LYING DOWN' : 'STANDING'}
+            </h3>
+            <p className="text-sm opacity-90">
+              {exercise.id === 1 || exercise.id === 2 || exercise.id === 3 || exercise.id === 4 || exercise.id === 5 
+                ? 'Lie flat on your back for this exercise' 
+                : 'Stand upright for this exercise'}
+            </p>
+          </div>
+        </div>
+        
         <Card className="w-full max-w-6xl h-[600px] bg-muted/20 border-4 border-primary relative">
           <CardContent className="h-full flex items-center justify-center">
             {exercisePhase === 'complete' ? (
