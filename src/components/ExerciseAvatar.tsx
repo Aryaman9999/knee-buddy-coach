@@ -11,7 +11,7 @@ export const exerciseDefinitions: Record<string, {
   startingPose: 'standing' | 'sitting' | 'lying';
 }> = {
   "1": { targetAngle: 90, startingPose: 'lying' },     // Heel Slides - lying with knee bend
-  "2": { targetAngle: 30, startingPose: 'sitting' },     // Quad Sets - sitting, isometric
+  "2": { targetAngle: 0, startingPose: 'sitting' },     // Quad Sets - sitting with straight leg
   "3": { targetAngle: 45, startingPose: 'lying' },     // Straight Leg Raises - lying, lift straight leg
   "4": { targetAngle: 20, startingPose: 'lying' },     // Ankle Pumps - lying, flex/point foot
   "5": { targetAngle: 60, startingPose: 'lying' },     // Short Arc Quads - lying with support under knee
@@ -157,29 +157,25 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         }
         break;
 
-      case "2": // Quad Sets (Lying) - Isometric quadriceps contraction
-        if (rightUpperLegRef.current && leftUpperLegRef.current) {
+      case "2": // Quad Sets (Sitting) - Isometric quadriceps contraction with straight leg
+        if (rightUpperLegRef.current && rightKneeRef.current) {
           const pulse = Math.sin(time * 1.5) * 0.5 + 0.5;
           
-          // Pulse both thighs to show bilateral contraction
+          // Keep leg straight out in front
+          rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+          rightKneeRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+          
+          // Pulse thigh to show muscle contraction
           const rightThighMesh = rightUpperLegRef.current.children[0] as Mesh;
-          const leftThighMesh = leftUpperLegRef.current.children[0] as Mesh;
           
-          [rightThighMesh, leftThighMesh].forEach(mesh => {
-            if (mesh && mesh.material) {
-              (mesh.material as any).emissiveIntensity = pulse * 0.4;
-              (mesh.material as any).emissive.set("#ffd89b");
-            }
-          });
-          
-          // Slight knee press down to show muscle engagement
-          if (rightKneeRef.current) {
-            const press = Math.sin(time * 1.5) * 0.05;
-            rightKneeRef.current.quaternion.copy(createQuaternion(-press, 0, 0));
+          if (rightThighMesh && rightThighMesh.material) {
+            (rightThighMesh.material as any).emissiveIntensity = pulse * 0.4;
+            (rightThighMesh.material as any).emissive.set("#ffd89b");
           }
-          if (leftKneeRef.current) {
-            const press = Math.sin(time * 1.5) * 0.05;
-            leftKneeRef.current.quaternion.copy(createQuaternion(-press, 0, 0));
+          
+          // Foot stays neutral
+          if (rightFootRef.current) {
+            rightFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
           }
         }
         break;
@@ -305,10 +301,10 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
     bedPosition = [0, -0.05, 0]; // Bed positioned below body
     floorYPosition = -0.25; // Raised floor to act as bed surface
   } else if (pose === 'sitting') {
-    // Sit on chair with proper posture
+    // Sit on chair with proper posture - legs straight out for Quad Sets
     pelvisRotation = [0, 0, 0]; // Pelvis upright
     pelvisPosition = [0, 0.7, 0]; // Seated on chair
-    hipRotation = [Math.PI / 2.2, 0, 0]; // Legs bent naturally at ~80 degrees
+    hipRotation = [0, 0, 0]; // Legs straight out in front
     floorYPosition = -1.25; // Normal floor for feet
   } else if (pose === 'standing') {
     // Stand upright with proper alignment
@@ -399,10 +395,10 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         </mesh>
       </group>
 
-      {/* Enhanced therapy chair for sitting exercises */}
+      {/* Enhanced therapy chair for sitting exercises - repositioned to not overlap legs */}
       <group visible={pose === 'sitting'}>
-        {/* Chair seat - padded appearance with better color */}
-        <mesh position={[0, 0.45, 0]}>
+        {/* Chair seat - padded appearance with better color, moved back */}
+        <mesh position={[0, 0.45, -0.4]}>
           <boxGeometry args={[0.55, 0.12, 0.55]} />
           <meshStandardMaterial
             color="#8B4513"
@@ -412,7 +408,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         </mesh>
         
         {/* Seat padding edge - lighter accent */}
-        <mesh position={[0, 0.52, 0]}>
+        <mesh position={[0, 0.52, -0.4]}>
           <boxGeometry args={[0.53, 0.03, 0.53]} />
           <meshStandardMaterial
             color="#A0522D"
@@ -422,7 +418,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         </mesh>
         
         {/* Chair back - tall and supportive with better color */}
-        <mesh position={[0, 0.9, -0.25]}>
+        <mesh position={[0, 0.9, -0.65]}>
           <boxGeometry args={[0.55, 0.8, 0.12]} />
           <meshStandardMaterial
             color="#8B4513"
@@ -432,7 +428,7 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         </mesh>
         
         {/* Back padding - lighter accent */}
-        <mesh position={[0, 0.9, -0.18]}>
+        <mesh position={[0, 0.9, -0.58]}>  {/* Repositioned back with seat */}
           <boxGeometry args={[0.53, 0.75, 0.06]} />
           <meshStandardMaterial
             color="#A0522D"
@@ -441,12 +437,12 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
           />
         </mesh>
         
-        {/* Chair legs - sturdy and visible */}
+        {/* Chair legs - repositioned to match moved seat */}
         {[
-          [-0.22, 0.2, 0.22],
-          [0.22, 0.2, 0.22],
-          [-0.22, 0.2, -0.22],
-          [0.22, 0.2, -0.22]
+          [-0.22, 0.2, -0.18],
+          [0.22, 0.2, -0.18],
+          [-0.22, 0.2, -0.62],
+          [0.22, 0.2, -0.62]
         ].map((pos, i) => (
           <mesh key={i} position={pos as [number, number, number]}>
             <cylinderGeometry args={[0.035, 0.03, 0.4, 16]} />
@@ -458,12 +454,12 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
           </mesh>
         ))}
         
-        {/* Chair cross supports - front and back */}
-        <mesh position={[0, 0.1, 0.22]} rotation={[0, 0, Math.PI / 2]}>
+        {/* Chair cross supports - repositioned */}
+        <mesh position={[0, 0.1, -0.18]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.025, 0.025, 0.44, 12]} />
           <meshStandardMaterial color="#654321" metalness={0.2} />
         </mesh>
-        <mesh position={[0, 0.1, -0.22]} rotation={[0, 0, Math.PI / 2]}>
+        <mesh position={[0, 0.1, -0.62]} rotation={[0, 0, Math.PI / 2]}>
           <cylinderGeometry args={[0.025, 0.025, 0.44, 12]} />
           <meshStandardMaterial color="#654321" metalness={0.2} />
         </mesh>
