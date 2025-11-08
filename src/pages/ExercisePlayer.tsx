@@ -4,7 +4,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Pause, Play, StopCircle, CheckCircle2 } from "lucide-react";
+import { Pause, Play, StopCircle, CheckCircle2, Volume2, VolumeX } from "lucide-react";
 import SensorConnection from "@/components/SensorConnection";
 import { bluetoothService } from "@/services/bluetoothService";
 import { SensorPacket } from "@/types/sensorData";
@@ -12,6 +12,7 @@ import { Suspense } from "react";
 import ExerciseAvatar from "@/components/ExerciseAvatar";
 import { exercises as exerciseList } from "./Exercises";
 import { exerciseDefinitions } from "@/components/ExerciseAvatar";
+import { voiceGuidance, exerciseGuidance } from "@/services/voiceGuidanceService";
 
 type ExercisePhase = 'demo' | 'countdown' | 'live' | 'complete';
 
@@ -29,8 +30,15 @@ const ExercisePlayer = () => {
   const [isSensorConnected, setIsSensorConnected] = useState(false);
   const [lastKneeAngle, setLastKneeAngle] = useState(0);
   const [repState, setRepState] = useState<'flexed' | 'extended'>('extended');
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
+  const [lastRepAnnounced, setLastRepAnnounced] = useState(0);
 
   const exercise = id ? exerciseList.find(ex => ex.id === parseInt(id)) : null;
+
+  // Cleanup voice on unmount
+  useEffect(() => {
+    return () => voiceGuidance.cancel();
+  }, []);
 
   // Subscribe to sensor data and detect reps
   useEffect(() => {
@@ -64,7 +72,8 @@ const ExercisePlayer = () => {
             setRepState('extended');
             // Count a rep!
             setCurrentRep((prev) => {
-              if (prev < exercise.reps) {
+              const nextRep = prev + 1;
+              if (nextRep <= exercise.reps) {
                 const feedbackMessages = [
                   "Great form!",
                   "Keep it up!",
@@ -72,15 +81,33 @@ const ExercisePlayer = () => {
                   "You're doing great!",
                   "Perfect technique!",
                 ];
-                setFeedback(feedbackMessages[Math.floor(Math.random() * feedbackMessages.length)]);
-                return prev + 1;
+                const feedback = feedbackMessages[Math.floor(Math.random() * feedbackMessages.length)];
+                setFeedback(feedback);
+                
+                // Voice announcement for rep count
+                voiceGuidance.speak(`${nextRep}`);
+                setLastRepAnnounced(nextRep);
+                
+                // Form cues every 5 reps
+                if (nextRep % 5 === 0 && id) {
+                  const guidance = exerciseGuidance[parseInt(id) as keyof typeof exerciseGuidance];
+                  if (guidance?.formCues) {
+                    const cue = guidance.formCues[Math.floor(Math.random() * guidance.formCues.length)];
+                    voiceGuidance.speak(cue);
+                  }
+                }
+                
+                return nextRep;
               } else {
                 if (currentSet < exercise.sets) {
+                  voiceGuidance.speak(`Set ${currentSet} complete. Rest for a moment.`, true);
                   setCurrentSet(currentSet + 1);
+                  setLastRepAnnounced(0);
                   return 0;
                 } else {
                   setExercisePhase('complete');
                   setFeedback("Exercise complete! Excellent work!");
+                  voiceGuidance.speak("Exercise complete! Excellent work!", true);
                 }
                 return prev;
               }
@@ -99,11 +126,19 @@ const ExercisePlayer = () => {
   useEffect(() => {
     if (exercisePhase !== 'demo') return;
     
+    if (id) {
+      const guidance = exerciseGuidance[parseInt(id) as keyof typeof exerciseGuidance];
+      if (guidance) {
+        voiceGuidance.speak("Watch the demonstration carefully", true);
+      }
+    }
+    
     const interval = setInterval(() => {
       setDemoTimer(prev => {
         if (prev <= 1) {
           setExercisePhase('countdown');
           setFeedback("Get ready to begin!");
+          voiceGuidance.speak("Get ready to begin", true);
           return 0;
         }
         return prev - 1;
@@ -111,7 +146,7 @@ const ExercisePlayer = () => {
     }, 1000);
     
     return () => clearInterval(interval);
-  }, [exercisePhase]);
+  }, [exercisePhase, id]);
 
   // Countdown phase timer
   useEffect(() => {
@@ -122,14 +157,28 @@ const ExercisePlayer = () => {
         if (prev <= 1) {
           setExercisePhase('live');
           setFeedback("Let's go! Follow along!");
+          
+          // Announce exercise start
+          if (id) {
+            const guidance = exerciseGuidance[parseInt(id) as keyof typeof exerciseGuidance];
+            if (guidance) {
+              voiceGuidance.speak(guidance.start, true);
+            }
+          }
           return 0;
         }
+        
+        // Countdown voice
+        if (prev <= 3) {
+          voiceGuidance.speak(prev.toString(), true);
+        }
+        
         return prev - 1;
       });
     }, 1000);
     
     return () => clearInterval(interval);
-  }, [exercisePhase]);
+  }, [exercisePhase, id]);
 
   // Show disconnected warning when in live mode without sensors
   useEffect(() => {
@@ -152,7 +201,13 @@ const ExercisePlayer = () => {
   }
 
   const handleEndSession = () => {
+    voiceGuidance.cancel();
     navigate("/exercises");
+  };
+
+  const toggleVoice = () => {
+    const enabled = voiceGuidance.toggle();
+    setIsVoiceEnabled(enabled);
   };
 
   return (
@@ -309,6 +364,23 @@ const ExercisePlayer = () => {
       {/* Control Buttons */}
       <div className="bg-card border-t-4 border-primary p-6 shadow-2xl">
         <div className="max-w-7xl mx-auto flex gap-4">
+          <Button
+            variant={isVoiceEnabled ? "default" : "outline"}
+            size="lg"
+            onClick={toggleVoice}
+          >
+            {isVoiceEnabled ? (
+              <>
+                <Volume2 className="h-8 w-8 mr-2" />
+                Voice On
+              </>
+            ) : (
+              <>
+                <VolumeX className="h-8 w-8 mr-2" />
+                Voice Off
+              </>
+            )}
+          </Button>
           <Button
             variant={isPaused ? "default" : "outline"}
             size="lg"
