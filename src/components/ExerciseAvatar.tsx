@@ -4,6 +4,7 @@ import { Mesh, Group, Quaternion, Euler, Vector3, BoxGeometry } from "three";
 import { SensorPacket } from "@/types/sensorData";
 import { sensorDataMapper } from "@/utils/sensorDataMapper";
 import AngleIndicator from "./AngleIndicator";
+import { Text } from "@react-three/drei";
 
 // All exercise data in one place - exported for use in ExercisePlayer
 export const exerciseDefinitions: Record<string, {
@@ -355,110 +356,178 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         color="#f0f4f8"
       />
 
-      {/* Professional therapy bed for lying exercises - highly transparent */}
-      <mesh
-        visible={pose === 'lying'}
-        position={bedPosition}
+      {/* POSTURE LABEL - Clear visual indicator */}
+      <Text
+        position={[0, 2.2, 0]}
+        fontSize={0.35}
+        color="#1a73e8"
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.02}
+        outlineColor="#ffffff"
+        font="/fonts/Inter-Bold.woff"
       >
-        <boxGeometry args={[1.3, 0.1, 2.2]} />
-        <meshStandardMaterial
-          color="#c8ddf2"
-          roughness={0.4}
-          metalness={0.15}
-          transparent={true}
-          opacity={0.4}
-        />
-      </mesh>
+        {pose === 'lying' && '🛏️ LYING DOWN'}
+        {pose === 'sitting' && '🪑 SEATED'}
+        {pose === 'standing' && '🧍 STANDING'}
+      </Text>
       
-      {/* Bed outline for better visibility */}
-      <lineSegments visible={pose === 'lying'} position={bedPosition}>
-        <edgesGeometry args={[new BoxGeometry(1.3, 0.1, 2.2)]} />
-        <lineBasicMaterial color="#8fb8dc" transparent opacity={0.6} />
-      </lineSegments>
+      {/* POSTURE INSTRUCTION */}
+      <Text
+        position={[0, 1.85, 0]}
+        fontSize={0.18}
+        color="#5f6368"
+        anchorX="center"
+        anchorY="middle"
+        outlineWidth={0.01}
+        outlineColor="#ffffff"
+        maxWidth={3.5}
+        textAlign="center"
+      >
+        {pose === 'lying' && 'Perform this exercise while lying flat on your back'}
+        {pose === 'sitting' && 'Perform this exercise while seated in a chair'}
+        {pose === 'standing' && 'Perform this exercise while standing upright'}
+      </Text>
 
-      {/* Professional therapy chair for sitting exercises */}
-      <group visible={pose === 'sitting'}>
-        {/* Chair seat - padded appearance */}
-        <mesh position={[0, 0.45, 0]}>
-          <boxGeometry args={[0.55, 0.1, 0.55]} />
+      {/* Enhanced therapy bed for lying exercises - MORE VISIBLE */}
+      <group visible={pose === 'lying'}>
+        {/* Main bed surface */}
+        <mesh position={bedPosition}>
+          <boxGeometry args={[1.3, 0.12, 2.2]} />
           <meshStandardMaterial
-            color="#6b5644"
-            roughness={0.6}
-            metalness={0.05}
+            color="#5DADE2"
+            roughness={0.3}
+            metalness={0.2}
+            transparent={true}
+            opacity={0.6}
           />
         </mesh>
         
-        {/* Seat padding edge */}
-        <mesh position={[0, 0.51, 0]}>
-          <boxGeometry args={[0.53, 0.02, 0.53]} />
-          <meshStandardMaterial
-            color="#8a7460"
-            roughness={0.7}
-            metalness={0.05}
-          />
-        </mesh>
+        {/* Bed frame outline - thick and visible */}
+        <lineSegments position={bedPosition}>
+          <edgesGeometry args={[new BoxGeometry(1.3, 0.12, 2.2)]} />
+          <lineBasicMaterial color="#1565C0" linewidth={3} />
+        </lineSegments>
         
-        {/* Chair back - tall and supportive */}
-        <mesh position={[0, 0.85, -0.25]}>
-          <boxGeometry args={[0.55, 0.75, 0.1]} />
-          <meshStandardMaterial
-            color="#6b5644"
-            roughness={0.6}
-            metalness={0.05}
-          />
-        </mesh>
-        
-        {/* Back padding */}
-        <mesh position={[0, 0.85, -0.19]}>
-          <boxGeometry args={[0.53, 0.7, 0.04]} />
-          <meshStandardMaterial
-            color="#8a7460"
-            roughness={0.7}
-            metalness={0.05}
-          />
-        </mesh>
-        
-        {/* Chair legs with realistic proportions */}
+        {/* Bed legs for realism */}
         {[
-          [-0.22, 0.2, 0.22],   // front left
-          [0.22, 0.2, 0.22],    // front right
-          [-0.22, 0.2, -0.22],  // back left
-          [0.22, 0.2, -0.22]    // back right
+          [-0.55, -0.25, 0.9],
+          [0.55, -0.25, 0.9],
+          [-0.55, -0.25, -0.9],
+          [0.55, -0.25, -0.9]
         ].map((pos, i) => (
           <mesh key={i} position={pos as [number, number, number]}>
-            <cylinderGeometry args={[0.03, 0.025, 0.4, 16]} />
+            <cylinderGeometry args={[0.04, 0.04, 0.5, 16]} />
+            <meshStandardMaterial color="#34495E" metalness={0.6} roughness={0.3} />
+          </mesh>
+        ))}
+        
+        {/* Side rails */}
+        <mesh position={[0.65, -0.05, 0]}>
+          <boxGeometry args={[0.03, 0.15, 2.0]} />
+          <meshStandardMaterial color="#34495E" metalness={0.6} roughness={0.3} />
+        </mesh>
+        <mesh position={[-0.65, -0.05, 0]}>
+          <boxGeometry args={[0.03, 0.15, 2.0]} />
+          <meshStandardMaterial color="#34495E" metalness={0.6} roughness={0.3} />
+        </mesh>
+      </group>
+
+      {/* Enhanced therapy chair for sitting exercises */}
+      <group visible={pose === 'sitting'}>
+        {/* Chair seat - padded appearance with better color */}
+        <mesh position={[0, 0.45, 0]}>
+          <boxGeometry args={[0.55, 0.12, 0.55]} />
+          <meshStandardMaterial
+            color="#8B4513"
+            roughness={0.5}
+            metalness={0.1}
+          />
+        </mesh>
+        
+        {/* Seat padding edge - lighter accent */}
+        <mesh position={[0, 0.52, 0]}>
+          <boxGeometry args={[0.53, 0.03, 0.53]} />
+          <meshStandardMaterial
+            color="#A0522D"
+            roughness={0.6}
+            metalness={0.05}
+          />
+        </mesh>
+        
+        {/* Chair back - tall and supportive with better color */}
+        <mesh position={[0, 0.9, -0.25]}>
+          <boxGeometry args={[0.55, 0.8, 0.12]} />
+          <meshStandardMaterial
+            color="#8B4513"
+            roughness={0.5}
+            metalness={0.1}
+          />
+        </mesh>
+        
+        {/* Back padding - lighter accent */}
+        <mesh position={[0, 0.9, -0.18]}>
+          <boxGeometry args={[0.53, 0.75, 0.06]} />
+          <meshStandardMaterial
+            color="#A0522D"
+            roughness={0.6}
+            metalness={0.05}
+          />
+        </mesh>
+        
+        {/* Chair legs - sturdy and visible */}
+        {[
+          [-0.22, 0.2, 0.22],
+          [0.22, 0.2, 0.22],
+          [-0.22, 0.2, -0.22],
+          [0.22, 0.2, -0.22]
+        ].map((pos, i) => (
+          <mesh key={i} position={pos as [number, number, number]}>
+            <cylinderGeometry args={[0.035, 0.03, 0.4, 16]} />
             <meshStandardMaterial
-              color="#4a3828"
-              roughness={0.5}
-              metalness={0.1}
+              color="#654321"
+              roughness={0.4}
+              metalness={0.2}
             />
           </mesh>
         ))}
         
-        {/* Chair cross supports for stability */}
+        {/* Chair cross supports - front and back */}
         <mesh position={[0, 0.1, 0.22]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.02, 0.02, 0.44, 12]} />
-          <meshStandardMaterial color="#4a3828" />
+          <cylinderGeometry args={[0.025, 0.025, 0.44, 12]} />
+          <meshStandardMaterial color="#654321" metalness={0.2} />
         </mesh>
         <mesh position={[0, 0.1, -0.22]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.02, 0.02, 0.44, 12]} />
-          <meshStandardMaterial color="#4a3828" />
+          <cylinderGeometry args={[0.025, 0.025, 0.44, 12]} />
+          <meshStandardMaterial color="#654321" metalness={0.2} />
         </mesh>
       </group>
 
-      {/* Foam roll support for Short Arc Quads (exercise 5) - under knee */}
+      {/* Foam roll support for Short Arc Quads (exercise 5) - MORE VISIBLE */}
       <mesh
         visible={pose === 'lying' && exerciseId === '5'}
-        position={[0.15, -0.1, -0.35]}
+        position={[0.15, -0.05, -0.35]}
         rotation={[0, 0, Math.PI / 2]}
       >
-        <cylinderGeometry args={[0.09, 0.09, 0.35, 20]} />
+        <cylinderGeometry args={[0.1, 0.1, 0.4, 24]} />
         <meshStandardMaterial
-          color="#e8dcc8"
-          roughness={0.7}
-          metalness={0.05}
+          color="#FFB74D"
+          roughness={0.6}
+          metalness={0.1}
         />
       </mesh>
+      
+      {/* Label for foam roll */}
+      <Text
+        visible={pose === 'lying' && exerciseId === '5'}
+        position={[0.15, 0.15, -0.35]}
+        fontSize={0.08}
+        color="#E65100"
+        anchorX="center"
+        anchorY="middle"
+      >
+        Knee Support
+      </Text>
 
       <group ref={groupRef} position={[0, 0, 0]} rotation={pelvisRotation}>
         {/* Lower Back / Pelvis - professional medical blue */}
@@ -634,31 +703,37 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
           </group>
         </group>
 
-        {/* Professional floor with clean design */}
+        {/* Enhanced floor with posture-specific styling */}
         <mesh 
           rotation={[-Math.PI / 2, 0, 0]} 
           position={[0, floorYPosition, 0]}
         >
-          <circleGeometry args={[3, 64]} />
+          <circleGeometry args={[3.5, 64]} />
           <meshStandardMaterial 
-            color="#f5f7fa" 
-            roughness={0.8}
-            metalness={0.1}
-            opacity={0.98} 
-            transparent 
+            color={
+              pose === 'lying' ? '#E3F2FD' : 
+              pose === 'sitting' ? '#FFF3E0' : 
+              '#E8F5E9'
+            }
+            roughness={0.7}
+            metalness={0.15}
           />
         </mesh>
         
-        {/* Refined grid pattern on floor */}
+        {/* Grid pattern - color-coded by posture */}
         <mesh 
           rotation={[-Math.PI / 2, 0, 0]} 
-          position={[0, floorYPosition + 0.001, 0]}
+          position={[0, floorYPosition + 0.002, 0]}
         >
-          <circleGeometry args={[3, 64]} />
+          <circleGeometry args={[3.5, 64]} />
           <meshBasicMaterial 
-            color="#cfd8e3" 
+            color={
+              pose === 'lying' ? '#1976D2' : 
+              pose === 'sitting' ? '#F57C00' : 
+              '#388E3C'
+            }
             wireframe 
-            opacity={0.2} 
+            opacity={0.25} 
             transparent 
           />
         </mesh>
