@@ -11,7 +11,7 @@ export const exerciseDefinitions: Record<string, {
   startingPose: 'standing' | 'sitting' | 'lying';
 }> = {
   "1": { targetAngle: 90, startingPose: 'lying' },     // Heel Slides - lying with knee bend
-  "2": { targetAngle: 30, startingPose: 'lying' },     // Quad Sets - lying, isometric
+  "2": { targetAngle: 30, startingPose: 'sitting' },     // Quad Sets - sitting, isometric
   "3": { targetAngle: 45, startingPose: 'lying' },     // Straight Leg Raises - lying, lift straight leg
   "4": { targetAngle: 20, startingPose: 'lying' },     // Ankle Pumps - lying, flex/point foot
   "5": { targetAngle: 60, startingPose: 'lying' },     // Short Arc Quads - lying with support under knee

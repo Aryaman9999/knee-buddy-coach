@@ -65,7 +65,7 @@ export const voiceGuidance = new VoiceGuidanceService();
 // Exercise-specific guidance
 export const exerciseGuidance = {
   1: { // Heel Slides
-    start: "Begin heel slides. Slide your heel towards your buttocks, then back out.",
+    start: "Lie flat on your back. Begin heel slides. Slide your heel towards your buttocks, then back out.",
     formCues: [
       "Keep your knee aligned",
       "Smooth controlled motion",
@@ -73,7 +73,7 @@ export const exerciseGuidance = {
     ]
   },
   2: { // Quad Sets
-    start: "Begin quad sets. Tighten your thigh muscle and hold.",
+    start: "Sit in a chair with your back supported. Begin quad sets. Tighten your thigh muscle and hold.",
     formCues: [
       "Squeeze your thigh muscle",
       "Hold for three seconds",
@@ -81,7 +81,7 @@ export const exerciseGuidance = {
     ]
   },
   3: { // Straight Leg Raises
-    start: "Begin straight leg raises. Keep your leg straight and lift.",
+    start: "Lie flat on your back. Begin straight leg raises. Keep your leg straight and lift.",
     formCues: [
       "Lock your knee",
       "Lift to hip level",
@@ -89,7 +89,7 @@ export const exerciseGuidance = {
     ]
   },
   4: { // Ankle Pumps
-    start: "Begin ankle pumps. Point your toes up and down.",
+    start: "Lie flat on your back. Begin ankle pumps. Point your toes up and down.",
     formCues: [
       "Full range of motion",
       "Flex your ankle completely",
@@ -97,7 +97,7 @@ export const exerciseGuidance = {
     ]
   },
   5: { // Short Arc Quads
-    start: "Begin short arc quads. Straighten your knee over the roll.",
+    start: "Lie flat on your back with a roll under your knee. Begin short arc quads. Straighten your knee over the roll.",
     formCues: [
       "Keep your thigh on the roll",
       "Lift your foot up",
@@ -105,7 +105,7 @@ export const exerciseGuidance = {
     ]
   },
   6: { // Hamstring Curls
-    start: "Begin hamstring curls. Bend your knee and bring your heel towards your buttocks.",
+    start: "Stand upright holding a support if needed. Begin hamstring curls. Bend your knee and bring your heel towards your buttocks.",
     formCues: [
       "Keep your hip stable",
       "Controlled bending motion",
