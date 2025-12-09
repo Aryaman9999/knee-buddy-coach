@@ -159,31 +159,30 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
 
       case "2": // Quad Sets (Lying) - Isometric quadriceps contraction
         if (rightUpperLegRef.current && rightKneeRef.current) {
-          // Contract/relax cycle - hold for 3 seconds, relax for 2 seconds
-          const cycleTime = time % 5; // 5 second total cycle
-          const isContracting = cycleTime < 3; // First 3 seconds = contract
-          const pulse = isContracting ? Math.sin((cycleTime / 3) * Math.PI) : 0;
+          // Smoother animation cycle for demo visibility
+          const pulse = (Math.sin(time * 1.2) * 0.5 + 0.5); // 0 to 1 oscillation
           
           // Leg stays flat on bed - straight
           rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
           
-          // Knee presses down into bed during contraction (subtle visual)
-          // This represents pushing the back of knee toward the bed
-          const press = pulse * 0.05;
+          // During contraction, knee presses down slightly (visible movement)
+          // This represents pushing back of knee toward bed
+          const press = pulse * 0.1; // Visible press downward
           rightKneeRef.current.quaternion.copy(createQuaternion(press, 0, 0));
           
-          // Pulse thigh to show muscle contraction - visual feedback
+          // Pulse thigh to show muscle contraction - strong visual feedback
           const rightThighMesh = rightUpperLegRef.current.children[0] as Mesh;
           
           if (rightThighMesh && rightThighMesh.material) {
-            // Strong visual feedback for contraction - muscle tightening
-            (rightThighMesh.material as any).emissiveIntensity = pulse * 0.7;
+            // Strong glow during contraction
+            (rightThighMesh.material as any).emissiveIntensity = pulse * 0.8;
             (rightThighMesh.material as any).emissive.set("#ffd89b");
           }
           
-          // Heel stays on bed, foot neutral (no lifting)
+          // Slight foot flex during contraction (toes pull toward shin slightly)
           if (rightFootRef.current) {
-            rightFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+            const footFlex = pulse * -0.12;
+            rightFootRef.current.quaternion.copy(createQuaternion(footFlex, 0, 0));
           }
         }
         break;
