@@ -72,13 +72,14 @@ export const exerciseGuidance = {
       "Don't rush the movement"
     ]
   },
-  2: { // Quad Sets
-    start: "Sit on the floor with your back supported and your leg straight out in front. Begin quad sets. Tighten your thigh muscle as hard as you can.",
+  2: { // Quad Sets (Lying)
+    start: "Lie flat on your back with both legs extended and relaxed. Keep your heel on the bed. Begin quad sets.",
     formCues: [
-      "Push the back of your knee down",
-      "Squeeze your thigh muscle tight",
-      "Hold for five seconds",
-      "You should see your kneecap pull upward"
+      "Tighten your thigh muscle",
+      "Push the back of your knee down toward the bed",
+      "Hold for three seconds",
+      "Your kneecap should pull upward slightly",
+      "Relax completely for two seconds"
     ]
   },
   3: { // Straight Leg Raises
