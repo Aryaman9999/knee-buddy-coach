@@ -11,7 +11,7 @@ export const exerciseDefinitions: Record<string, {
   startingPose: 'standing' | 'sitting' | 'lying';
 }> = {
   "1": { targetAngle: 90, startingPose: 'lying' },     // Heel Slides - lying with knee bend
-  "2": { targetAngle: 0, startingPose: 'sitting' },     // Quad Sets - sitting with straight leg
+  "2": { targetAngle: 0, startingPose: 'lying' },       // Quad Sets - lying with straight leg
   "3": { targetAngle: 45, startingPose: 'lying' },     // Straight Leg Raises - lying, lift straight leg
   "4": { targetAngle: 20, startingPose: 'lying' },     // Ankle Pumps - lying, flex/point foot
   "5": { targetAngle: 60, startingPose: 'lying' },     // Short Arc Quads - lying with support under knee
@@ -157,31 +157,33 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
         }
         break;
 
-      case "2": // Quad Sets (Sitting) - Isometric quadriceps contraction with straight leg
+      case "2": // Quad Sets (Lying) - Isometric quadriceps contraction
         if (rightUpperLegRef.current && rightKneeRef.current) {
-          const pulse = Math.sin(time * 1.5) * 0.5 + 0.5;
+          // Contract/relax cycle - hold for 3 seconds, relax for 2 seconds
+          const cycleTime = time % 5; // 5 second total cycle
+          const isContracting = cycleTime < 3; // First 3 seconds = contract
+          const pulse = isContracting ? Math.sin((cycleTime / 3) * Math.PI) : 0;
           
-          // Keep leg straight out in front
+          // Leg stays flat on bed - straight
           rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
           
-          // Slight knee press down to show muscle engagement (very subtle)
-          // This represents pushing the back of the knee down
-          const press = pulse * 0.08; // Subtle downward press
-          rightKneeRef.current.quaternion.copy(createQuaternion(-press, 0, 0));
+          // Knee presses down into bed during contraction (subtle visual)
+          // This represents pushing the back of knee toward the bed
+          const press = pulse * 0.05;
+          rightKneeRef.current.quaternion.copy(createQuaternion(press, 0, 0));
           
-          // Pulse thigh to show muscle contraction - more intense
+          // Pulse thigh to show muscle contraction - visual feedback
           const rightThighMesh = rightUpperLegRef.current.children[0] as Mesh;
           
           if (rightThighMesh && rightThighMesh.material) {
-            // Stronger visual feedback for the contraction
-            (rightThighMesh.material as any).emissiveIntensity = pulse * 0.6;
+            // Strong visual feedback for contraction - muscle tightening
+            (rightThighMesh.material as any).emissiveIntensity = pulse * 0.7;
             (rightThighMesh.material as any).emissive.set("#ffd89b");
           }
           
-          // Foot stays neutral but slight dorsiflexion during contraction
+          // Heel stays on bed, foot neutral (no lifting)
           if (rightFootRef.current) {
-            const footFlex = pulse * -0.15; // Slight pull toward body
-            rightFootRef.current.quaternion.copy(createQuaternion(footFlex, 0, 0));
+            rightFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
           }
         }
         break;

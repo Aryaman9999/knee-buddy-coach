@@ -17,6 +17,8 @@ export type Database = {
       gait_tests: {
         Row: {
           asymmetry_score: number | null
+          average_left_weight: number | null
+          average_right_weight: number | null
           created_at: string | null
           diagnoses: Json | null
           id: string
@@ -30,9 +32,12 @@ export type Database = {
           test_date: string | null
           test_duration: number | null
           user_id: string
+          weight_distribution_score: number | null
         }
         Insert: {
           asymmetry_score?: number | null
+          average_left_weight?: number | null
+          average_right_weight?: number | null
           created_at?: string | null
           diagnoses?: Json | null
           id?: string
@@ -46,9 +51,12 @@ export type Database = {
           test_date?: string | null
           test_duration?: number | null
           user_id: string
+          weight_distribution_score?: number | null
         }
         Update: {
           asymmetry_score?: number | null
+          average_left_weight?: number | null
+          average_right_weight?: number | null
           created_at?: string | null
           diagnoses?: Json | null
           id?: string
@@ -62,6 +70,7 @@ export type Database = {
           test_date?: string | null
           test_duration?: number | null
           user_id?: string
+          weight_distribution_score?: number | null
         }
         Relationships: []
       }
