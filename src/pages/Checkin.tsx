@@ -12,7 +12,7 @@ import { SensorPacket } from "@/types/sensorData";
 import GaitResults from "@/components/GaitResults";
 import { Canvas } from "@react-three/fiber";
 import { Suspense } from "react";
-import ExerciseAvatar from "@/components/ExerciseAvatar";
+import GaitAvatar from "@/components/GaitAvatar";
 import { supabase } from "@/integrations/supabase/client";
 
 const safetyQuestions = [
@@ -363,19 +363,15 @@ const Checkin = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Live Avatar Visualization */}
-              {isSensorConnected && (
-                <div className="h-[300px] bg-secondary/20 rounded-lg overflow-hidden">
-                  <Suspense fallback={<div className="flex items-center justify-center h-full">Loading...</div>}>
-                    <Canvas camera={{ position: [0, 1, 3], fov: 50 }}>
-                      <ExerciseAvatar
-                        exerciseId="1"
-                        currentRep={0}
-                        isPaused={false}
-                        mode="live"
+              {/* 3D Avatar Visualization - Shows during calibrate, walking, analyzing */}
+              {(gaitPhase === 'calibrate' || gaitPhase === 'walking' || gaitPhase === 'analyzing') && (
+                <div className="h-[350px] bg-secondary/20 rounded-lg overflow-hidden">
+                  <Suspense fallback={<div className="flex items-center justify-center h-full">Loading 3D Avatar...</div>}>
+                    <Canvas camera={{ position: [0, 0.5, 2.5], fov: 50 }}>
+                      <GaitAvatar
+                        phase={gaitPhase}
                         sensorData={sensorData}
                         isSensorConnected={isSensorConnected}
-                        trackedLeg="right"
                       />
                     </Canvas>
                   </Suspense>
