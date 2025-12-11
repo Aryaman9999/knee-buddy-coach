@@ -379,9 +379,9 @@ const Checkin = () => {
                 Gait Test
               </CardTitle>
               <CardDescription className="text-xl">
-                {gaitPhase === 'connect' && "Connect your sensors to begin"}
-                {gaitPhase === 'calibrate' && "Hold T-pose for calibration"}
-                {gaitPhase === 'ready' && "Calibration complete - press Proceed"}
+                {gaitPhase === 'connect' && "Connect your sensors"}
+                {gaitPhase === 'calibrate' && "Stand still for calibration"}
+                {gaitPhase === 'ready' && "Ready to begin - press Proceed"}
                 {gaitPhase === 'walking' && "Walk at a comfortable pace"}
                 {gaitPhase === 'analyzing' && "Analyzing your gait pattern"}
               </CardDescription>
@@ -389,9 +389,9 @@ const Checkin = () => {
             <CardContent className="space-y-6">
               {/* 3D Avatar Visualization - Shows during calibrate, ready, walking, analyzing */}
               {(gaitPhase === 'calibrate' || gaitPhase === 'ready' || gaitPhase === 'walking' || gaitPhase === 'analyzing') && (
-                <div className="h-[400px] bg-secondary/20 rounded-lg overflow-hidden">
+                <div className="h-[350px] bg-secondary/20 rounded-lg overflow-hidden">
                   <Suspense fallback={<div className="flex items-center justify-center h-full">Loading 3D Avatar...</div>}>
-                    <Canvas camera={{ position: [0, 0.5, 3], fov: 50 }}>
+                    <Canvas camera={{ position: [0, 0.5, 2.5], fov: 50 }}>
                       <GaitAvatar
                         phase={gaitPhase}
                         sensorData={sensorData}
@@ -413,32 +413,29 @@ const Checkin = () => {
                   </>
                 )}
 
-                {gaitPhase === 'calibrate' && (
+                {gaitPhase === 'ready' && (
                   <>
-                    <div className="text-6xl font-bold text-primary">{calibrationCountdown}</div>
-                    <p className="text-xl">Stand with arms extended to the sides (T-pose)</p>
-                    <p className="text-muted-foreground">Keep feet together and remain still</p>
+                    <p className="text-xl">Sensors calibrated. Stand straight and press Proceed when ready.</p>
+                    <Button size="lg" onClick={handleProceedToWalking}>
+                      <CheckCircle2 className="mr-2 h-5 w-5" />
+                      Proceed to Walking Test
+                    </Button>
                   </>
                 )}
 
-                {gaitPhase === 'ready' && (
+                {gaitPhase === 'calibrate' && (
                   <>
-                    <CheckCircle2 className="h-16 w-16 mx-auto text-green-500" />
-                    <p className="text-xl font-medium">Calibration Complete!</p>
-                    <p className="text-muted-foreground">Press Proceed when you're ready to walk</p>
-                    <Button size="lg" onClick={handleProceedToWalking}>
-                      <Activity className="mr-2 h-5 w-5" />
-                      Proceed to Walking Test
-                    </Button>
+                    <div className="text-6xl font-bold text-primary">{calibrationCountdown}</div>
+                    <p className="text-xl">Stand still with feet together</p>
                   </>
                 )}
 
                 {gaitPhase === 'walking' && (
                   <>
                     <div className="space-y-4">
-                      <div className="text-6xl font-bold text-primary">{walkingTimer}s</div>
+                      <div className="text-4xl font-bold text-primary">{walkingTimer}s remaining</div>
                       <Progress value={((10 - walkingTimer) / 10) * 100} className="h-4" />
-                      <p className="text-xl">Walk at a comfortable pace</p>
+                      <p className="text-xl">Keep walking at a comfortable pace</p>
                       <p className="text-muted-foreground">Steps detected: {stepCount}</p>
                     </div>
                   </>
