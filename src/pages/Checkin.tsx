@@ -43,6 +43,7 @@ const Checkin = () => {
   const [stepCount, setStepCount] = useState(0);
   const [testProgress, setTestProgress] = useState(0);
   const [calibrationCountdown, setCalibrationCountdown] = useState(3);
+  const [walkingTimer, setWalkingTimer] = useState(10);
   const [gaitResult, setGaitResult] = useState<GaitAnalysisResult | null>(null);
   const [isSensorConnected, setIsSensorConnected] = useState(false);
 
@@ -112,18 +113,40 @@ const Checkin = () => {
       // Capture calibration using actual sensor data
       if (sensorData) {
         gaitAnalyzer.reset();
-        // Apply calibration offsets from T-pose
+        // Apply calibration offsets from standing pose
         import('@/utils/sensorDataMapper').then(({ sensorDataMapper }) => {
           sensorDataMapper.calibrate(sensorData);
         });
         toast({
           title: "Calibration Complete",
-          description: "Start walking at a comfortable pace",
+          description: "Press Proceed when ready to walk",
         });
-        setGaitPhase('walking');
+        // Move to ready phase - show Proceed button
+        setGaitPhase('ready');
       }
     }
   }, [gaitPhase, calibrationCountdown, sensorData]);
+
+  // Walking timer - auto complete after 10 seconds
+  useEffect(() => {
+    if (gaitPhase === 'walking' && walkingTimer > 0) {
+      const timer = setTimeout(() => {
+        setWalkingTimer(walkingTimer - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (gaitPhase === 'walking' && walkingTimer === 0) {
+      handleCompleteTest();
+    }
+  }, [gaitPhase, walkingTimer]);
+
+  const handleProceedToWalking = () => {
+    setGaitPhase('walking');
+    setWalkingTimer(10);
+    toast({
+      title: "Start Walking",
+      description: "Walk at a comfortable pace for 10 seconds",
+    });
+  };
 
   const handleConnectSensors = async () => {
     try {
@@ -356,18 +379,19 @@ const Checkin = () => {
                 Gait Test
               </CardTitle>
               <CardDescription className="text-xl">
-                {gaitPhase === 'connect' && "Connect your sensors"}
-                {gaitPhase === 'calibrate' && "Stand in T-pose for calibration"}
+                {gaitPhase === 'connect' && "Connect your sensors to begin"}
+                {gaitPhase === 'calibrate' && "Hold T-pose for calibration"}
+                {gaitPhase === 'ready' && "Calibration complete - press Proceed"}
                 {gaitPhase === 'walking' && "Walk at a comfortable pace"}
                 {gaitPhase === 'analyzing' && "Analyzing your gait pattern"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* 3D Avatar Visualization - Shows during calibrate, walking, analyzing */}
-              {(gaitPhase === 'calibrate' || gaitPhase === 'walking' || gaitPhase === 'analyzing') && (
-                <div className="h-[350px] bg-secondary/20 rounded-lg overflow-hidden">
+              {/* 3D Avatar Visualization - Shows during calibrate, ready, walking, analyzing */}
+              {(gaitPhase === 'calibrate' || gaitPhase === 'ready' || gaitPhase === 'walking' || gaitPhase === 'analyzing') && (
+                <div className="h-[400px] bg-secondary/20 rounded-lg overflow-hidden">
                   <Suspense fallback={<div className="flex items-center justify-center h-full">Loading 3D Avatar...</div>}>
-                    <Canvas camera={{ position: [0, 0.5, 2.5], fov: 50 }}>
+                    <Canvas camera={{ position: [0, 0.5, 3], fov: 50 }}>
                       <GaitAvatar
                         phase={gaitPhase}
                         sensorData={sensorData}
@@ -392,24 +416,31 @@ const Checkin = () => {
                 {gaitPhase === 'calibrate' && (
                   <>
                     <div className="text-6xl font-bold text-primary">{calibrationCountdown}</div>
-                    <p className="text-xl">Stand still in a T-pose with feet together and arms extended</p>
+                    <p className="text-xl">Stand with arms extended to the sides (T-pose)</p>
+                    <p className="text-muted-foreground">Keep feet together and remain still</p>
+                  </>
+                )}
+
+                {gaitPhase === 'ready' && (
+                  <>
+                    <CheckCircle2 className="h-16 w-16 mx-auto text-green-500" />
+                    <p className="text-xl font-medium">Calibration Complete!</p>
+                    <p className="text-muted-foreground">Press Proceed when you're ready to walk</p>
+                    <Button size="lg" onClick={handleProceedToWalking}>
+                      <Activity className="mr-2 h-5 w-5" />
+                      Proceed to Walking Test
+                    </Button>
                   </>
                 )}
 
                 {gaitPhase === 'walking' && (
                   <>
                     <div className="space-y-4">
-                      <div className="text-4xl font-bold text-primary">{stepCount} / 10 steps</div>
-                      <Progress value={testProgress} className="h-4" />
-                      <p className="text-xl">Keep walking at a comfortable pace</p>
+                      <div className="text-6xl font-bold text-primary">{walkingTimer}s</div>
+                      <Progress value={((10 - walkingTimer) / 10) * 100} className="h-4" />
+                      <p className="text-xl">Walk at a comfortable pace</p>
+                      <p className="text-muted-foreground">Steps detected: {stepCount}</p>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      onClick={handleCompleteTest}
-                      disabled={stepCount < 5}
-                    >
-                      {stepCount >= 5 ? 'Finish Test' : `Need ${5 - stepCount} more steps`}
-                    </Button>
                   </>
                 )}
 

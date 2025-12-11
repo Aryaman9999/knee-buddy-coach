@@ -47,6 +47,7 @@ export interface GaitAnalysisResult {
 export type GaitTestPhase = 
   | 'connect' 
   | 'calibrate' 
+  | 'ready'
   | 'walking' 
   | 'analyzing' 
   | 'results';
