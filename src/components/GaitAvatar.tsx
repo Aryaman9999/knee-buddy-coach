@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Group, Mesh, Quaternion as ThreeQuaternion } from "three";
+import { Group, Mesh, Quaternion as ThreeQuaternion, Euler } from "three";
 import { SensorPacket } from "@/types/sensorData";
 import { GaitTestPhase } from "@/types/gaitAnalysis";
 
@@ -32,7 +32,7 @@ const GaitAvatar = ({ phase, sensorData, isSensorConnected }: GaitAvatarProps) =
 
   const createQuaternion = (x: number, y: number, z: number) => {
     const q = new ThreeQuaternion();
-    q.setFromEuler(new (window as any).THREE.Euler(x, y, z, 'XYZ'));
+    q.setFromEuler(new Euler(x, y, z, 'XYZ'));
     return q;
   };
 
