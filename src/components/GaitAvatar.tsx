@@ -15,16 +15,16 @@ const GaitAvatar = ({ phase, sensorData, isSensorConnected }: GaitAvatarProps) =
   const rootRef = useRef<Group>(null);
   const pelvisRef = useRef<Group>(null);
   const torsoRef = useRef<Group>(null);
-  
+
   // Arms
   const rightArmRef = useRef<Group>(null);
   const leftArmRef = useRef<Group>(null);
-  
+
   // Right leg chain
   const rightUpperLegRef = useRef<Group>(null);
   const rightKneeRef = useRef<Group>(null);
   const rightFootRef = useRef<Group>(null);
-  
+
   // Left leg chain
   const leftUpperLegRef = useRef<Group>(null);
   const leftKneeRef = useRef<Group>(null);
@@ -39,101 +39,120 @@ const GaitAvatar = ({ phase, sensorData, isSensorConnected }: GaitAvatarProps) =
   useFrame(({ clock }) => {
     const time = clock.getElapsedTime();
 
-    // T-pose during calibration - arms extended horizontally
-    if (phase === 'calibrate') {
-      // Standing straight
-      if (pelvisRef.current) pelvisRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      if (torsoRef.current) torsoRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      
-      // Arms extended outward (T-pose) - rotate 90 degrees on Z axis
-      if (rightArmRef.current) rightArmRef.current.quaternion.copy(createQuaternion(0, 0, Math.PI / 2));
-      if (leftArmRef.current) leftArmRef.current.quaternion.copy(createQuaternion(0, 0, -Math.PI / 2));
-      
-      // Legs straight down, feet together
-      if (rightUpperLegRef.current) rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      if (rightKneeRef.current) rightKneeRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      if (rightFootRef.current) rightFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      
-      if (leftUpperLegRef.current) leftUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      if (leftKneeRef.current) leftKneeRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      if (leftFootRef.current) leftFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+    // Priority: Live sensor data if connected
+    if (isSensorConnected && sensorData) {
+      import("@/utils/sensorDataMapper").then(({ sensorDataMapper }) => {
+        if (!sensorDataMapper.isValidPacket(sensorData)) return;
+
+        const processed = sensorDataMapper.processSensorPacket(sensorData, true);
+        const { sensors } = processed;
+
+        const toThreeQ = (q: any) => new ThreeQuaternion(q.qx, q.qy, q.qz, q.qw);
+
+        // Apply pelvis rotation
+        if (pelvisRef.current && sensors.pelvis) {
+          pelvisRef.current.quaternion.copy(toThreeQ(sensors.pelvis));
+        }
+
+        // Apply right thigh rotation
+        if (rightUpperLegRef.current && sensors.right_thigh) {
+          rightUpperLegRef.current.quaternion.copy(toThreeQ(sensors.right_thigh));
+        }
+
+        // Apply right shin rotation
+        if (rightKneeRef.current && sensors.right_shin) {
+          rightKneeRef.current.quaternion.copy(toThreeQ(sensors.right_shin));
+        }
+
+        // Apply left thigh rotation
+        if (leftUpperLegRef.current && sensors.left_thigh) {
+          leftUpperLegRef.current.quaternion.copy(toThreeQ(sensors.left_thigh));
+        }
+
+        // Apply left shin rotation
+        if (leftKneeRef.current && sensors.left_shin) {
+          leftKneeRef.current.quaternion.copy(toThreeQ(sensors.left_shin));
+        }
+
+        // Arms - if in calibration mode, ensure they follow body or stick to T-pose?
+        // Actually, if we only have lower body sensors, we might want to animate arms based on phase or just let them hang?
+        // The original code didn't map arms from sensors (likely only 5 sensors: pelvis, 2x thigh, 2x shin).
+        // So we should animate arms based on phase even when sensors drive the legs.
+
+        if (phase === 'calibrate') {
+          // Arms T-pose
+          if (rightArmRef.current) rightArmRef.current.quaternion.copy(createQuaternion(0, 0, Math.PI / 2));
+          if (leftArmRef.current) leftArmRef.current.quaternion.copy(createQuaternion(0, 0, -Math.PI / 2));
+        } else if (phase === 'walking') {
+          // Swing arms
+          const armSwing = Math.sin(time * 2) * 0.3;
+          if (rightArmRef.current) rightArmRef.current.quaternion.copy(createQuaternion(-armSwing, 0, 0));
+          if (leftArmRef.current) leftArmRef.current.quaternion.copy(createQuaternion(armSwing, 0, 0));
+        } else {
+          // Arms relaxed
+          if (rightArmRef.current) rightArmRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+          if (leftArmRef.current) leftArmRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+        }
+      });
     }
-    
-    // Standing pose during connect and ready phases - arms down
-    else if (phase === 'connect' || phase === 'ready') {
-      if (pelvisRef.current) pelvisRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      if (torsoRef.current) torsoRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      
-      // Arms down by sides
-      if (rightArmRef.current) rightArmRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      if (leftArmRef.current) leftArmRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      
-      // Legs straight down
-      if (rightUpperLegRef.current) rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      if (rightKneeRef.current) rightKneeRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      if (rightFootRef.current) rightFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      
-      if (leftUpperLegRef.current) leftUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      if (leftKneeRef.current) leftKneeRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      if (leftFootRef.current) leftFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-    }
-    
-    // Walking animation during data collection
-    else if (phase === 'walking') {
-      // Arms swing naturally during walking
-      const armSwing = Math.sin(time * 2) * 0.3;
-      if (rightArmRef.current) rightArmRef.current.quaternion.copy(createQuaternion(-armSwing, 0, 0));
-      if (leftArmRef.current) leftArmRef.current.quaternion.copy(createQuaternion(armSwing, 0, 0));
-      
-      if (isSensorConnected && sensorData) {
-        // Live sensor-driven movement - Process with calibration/smoothing
-        import("@/utils/sensorDataMapper").then(({ sensorDataMapper }) => {
-          if (!sensorDataMapper.isValidPacket(sensorData)) return;
-          
-          const processed = sensorDataMapper.processSensorPacket(sensorData, true);
-          const { sensors } = processed;
-          
-          const toThreeQ = (q: any) => new ThreeQuaternion(q.qx, q.qy, q.qz, q.qw);
-          
-          // Apply pelvis rotation
-          if (pelvisRef.current && sensors.pelvis) {
-            pelvisRef.current.quaternion.copy(toThreeQ(sensors.pelvis));
-          }
-          
-          // Apply right thigh rotation
-          if (rightUpperLegRef.current && sensors.right_thigh) {
-             // For gait, we want relative to world, but mapped to avatar skeleton
-             // The sensor orientation might match directly if calibrated in specific pose
-             // Using direct mapping as per original code but with processed data
-             rightUpperLegRef.current.quaternion.copy(toThreeQ(sensors.right_thigh));
-          }
-          
-          // Apply right shin rotation
-          if (rightKneeRef.current && sensors.right_shin) {
-             rightKneeRef.current.quaternion.copy(toThreeQ(sensors.right_shin));
-          }
-          
-          // Apply left thigh rotation
-          if (leftUpperLegRef.current && sensors.left_thigh) {
-             leftUpperLegRef.current.quaternion.copy(toThreeQ(sensors.left_thigh));
-          }
-          
-          // Apply left shin rotation
-          if (leftKneeRef.current && sensors.left_shin) {
-             leftKneeRef.current.quaternion.copy(toThreeQ(sensors.left_shin));
-          }
-        });
-      } else {
+    // Fallback: Procedural animations when no sensors
+    else {
+      // T-pose during calibration - arms extended horizontally
+      if (phase === 'calibrate') {
+        // Standing straight
+        if (pelvisRef.current) pelvisRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+        if (torsoRef.current) torsoRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+
+        // Arms extended outward (T-pose) - rotate 90 degrees on Z axis
+        if (rightArmRef.current) rightArmRef.current.quaternion.copy(createQuaternion(0, 0, Math.PI / 2));
+        if (leftArmRef.current) leftArmRef.current.quaternion.copy(createQuaternion(0, 0, -Math.PI / 2));
+
+        // Legs straight down, feet together
+        if (rightUpperLegRef.current) rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+        if (rightKneeRef.current) rightKneeRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+        if (rightFootRef.current) rightFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+
+        if (leftUpperLegRef.current) leftUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+        if (leftKneeRef.current) leftKneeRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+        if (leftFootRef.current) leftFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+      }
+
+      // Standing pose during connect and ready phases - arms down
+      else if (phase === 'connect' || phase === 'ready') {
+        if (pelvisRef.current) pelvisRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+        if (torsoRef.current) torsoRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+
+        // Arms down by sides
+        if (rightArmRef.current) rightArmRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+        if (leftArmRef.current) leftArmRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+
+        // Legs straight down
+        if (rightUpperLegRef.current) rightUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+        if (rightKneeRef.current) rightKneeRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+        if (rightFootRef.current) rightFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+
+        if (leftUpperLegRef.current) leftUpperLegRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+        if (leftKneeRef.current) leftKneeRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+        if (leftFootRef.current) leftFootRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+      }
+
+      // Walking animation during data collection
+      else if (phase === 'walking') {
+        // Arms swing naturally during walking
+        const armSwing = Math.sin(time * 2) * 0.3;
+        if (rightArmRef.current) rightArmRef.current.quaternion.copy(createQuaternion(-armSwing, 0, 0));
+        if (leftArmRef.current) leftArmRef.current.quaternion.copy(createQuaternion(armSwing, 0, 0));
+
         // Demo walking animation when no sensor data
         const walkCycle = time * 2;
         const legSwing = Math.sin(walkCycle) * 0.4;
         const kneeFlexion = Math.max(0, Math.sin(walkCycle)) * 0.6;
-        
+
         // Subtle pelvis rotation
         if (pelvisRef.current) {
           pelvisRef.current.quaternion.copy(createQuaternion(0, Math.sin(walkCycle) * 0.05, 0));
         }
-        
+
         // Right leg
         if (rightUpperLegRef.current) {
           rightUpperLegRef.current.quaternion.copy(createQuaternion(legSwing, 0, 0));
@@ -142,7 +161,7 @@ const GaitAvatar = ({ phase, sensorData, isSensorConnected }: GaitAvatarProps) =
           const rKnee = legSwing > 0 ? kneeFlexion : 0;
           rightKneeRef.current.quaternion.copy(createQuaternion(rKnee, 0, 0));
         }
-        
+
         // Left leg (opposite phase)
         if (leftUpperLegRef.current) {
           leftUpperLegRef.current.quaternion.copy(createQuaternion(-legSwing, 0, 0));
@@ -152,17 +171,17 @@ const GaitAvatar = ({ phase, sensorData, isSensorConnected }: GaitAvatarProps) =
           leftKneeRef.current.quaternion.copy(createQuaternion(lKnee, 0, 0));
         }
       }
-    }
-    
-    // Analyzing phase - subtle idle animation
-    else if (phase === 'analyzing') {
-      const breathe = Math.sin(time * 1.5) * 0.02;
-      if (torsoRef.current) {
-        torsoRef.current.quaternion.copy(createQuaternion(breathe, 0, 0));
+
+      // Analyzing phase - subtle idle animation
+      else if (phase === 'analyzing') {
+        const breathe = Math.sin(time * 1.5) * 0.02;
+        if (torsoRef.current) {
+          torsoRef.current.quaternion.copy(createQuaternion(breathe, 0, 0));
+        }
+        // Arms relaxed
+        if (rightArmRef.current) rightArmRef.current.quaternion.copy(createQuaternion(0, 0, 0));
+        if (leftArmRef.current) leftArmRef.current.quaternion.copy(createQuaternion(0, 0, 0));
       }
-      // Arms relaxed
-      if (rightArmRef.current) rightArmRef.current.quaternion.copy(createQuaternion(0, 0, 0));
-      if (leftArmRef.current) leftArmRef.current.quaternion.copy(createQuaternion(0, 0, 0));
     }
   });
 
