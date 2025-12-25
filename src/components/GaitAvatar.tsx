@@ -86,63 +86,43 @@ const GaitAvatar = ({ phase, sensorData, isSensorConnected }: GaitAvatarProps) =
       if (leftArmRef.current) leftArmRef.current.quaternion.copy(createQuaternion(armSwing, 0, 0));
       
       if (isSensorConnected && sensorData) {
-        // Live sensor-driven movement
-        const { sensors } = sensorData;
-        
-        // Apply pelvis rotation
-        if (pelvisRef.current && sensors.pelvis) {
-          const q = new ThreeQuaternion(
-            sensors.pelvis.qx,
-            sensors.pelvis.qy,
-            sensors.pelvis.qz,
-            sensors.pelvis.qw
-          );
-          pelvisRef.current.quaternion.copy(q);
-        }
-        
-        // Apply right thigh rotation
-        if (rightUpperLegRef.current && sensors.right_thigh) {
-          const q = new ThreeQuaternion(
-            sensors.right_thigh.qx,
-            sensors.right_thigh.qy,
-            sensors.right_thigh.qz,
-            sensors.right_thigh.qw
-          );
-          rightUpperLegRef.current.quaternion.copy(q);
-        }
-        
-        // Apply right shin rotation
-        if (rightKneeRef.current && sensors.right_shin) {
-          const q = new ThreeQuaternion(
-            sensors.right_shin.qx,
-            sensors.right_shin.qy,
-            sensors.right_shin.qz,
-            sensors.right_shin.qw
-          );
-          rightKneeRef.current.quaternion.copy(q);
-        }
-        
-        // Apply left thigh rotation
-        if (leftUpperLegRef.current && sensors.left_thigh) {
-          const q = new ThreeQuaternion(
-            sensors.left_thigh.qx,
-            sensors.left_thigh.qy,
-            sensors.left_thigh.qz,
-            sensors.left_thigh.qw
-          );
-          leftUpperLegRef.current.quaternion.copy(q);
-        }
-        
-        // Apply left shin rotation
-        if (leftKneeRef.current && sensors.left_shin) {
-          const q = new ThreeQuaternion(
-            sensors.left_shin.qx,
-            sensors.left_shin.qy,
-            sensors.left_shin.qz,
-            sensors.left_shin.qw
-          );
-          leftKneeRef.current.quaternion.copy(q);
-        }
+        // Live sensor-driven movement - Process with calibration/smoothing
+        import("@/utils/sensorDataMapper").then(({ sensorDataMapper }) => {
+          if (!sensorDataMapper.isValidPacket(sensorData)) return;
+          
+          const processed = sensorDataMapper.processSensorPacket(sensorData, true);
+          const { sensors } = processed;
+          
+          const toThreeQ = (q: any) => new ThreeQuaternion(q.qx, q.qy, q.qz, q.qw);
+          
+          // Apply pelvis rotation
+          if (pelvisRef.current && sensors.pelvis) {
+            pelvisRef.current.quaternion.copy(toThreeQ(sensors.pelvis));
+          }
+          
+          // Apply right thigh rotation
+          if (rightUpperLegRef.current && sensors.right_thigh) {
+             // For gait, we want relative to world, but mapped to avatar skeleton
+             // The sensor orientation might match directly if calibrated in specific pose
+             // Using direct mapping as per original code but with processed data
+             rightUpperLegRef.current.quaternion.copy(toThreeQ(sensors.right_thigh));
+          }
+          
+          // Apply right shin rotation
+          if (rightKneeRef.current && sensors.right_shin) {
+             rightKneeRef.current.quaternion.copy(toThreeQ(sensors.right_shin));
+          }
+          
+          // Apply left thigh rotation
+          if (leftUpperLegRef.current && sensors.left_thigh) {
+             leftUpperLegRef.current.quaternion.copy(toThreeQ(sensors.left_thigh));
+          }
+          
+          // Apply left shin rotation
+          if (leftKneeRef.current && sensors.left_shin) {
+             leftKneeRef.current.quaternion.copy(toThreeQ(sensors.left_shin));
+          }
+        });
       } else {
         // Demo walking animation when no sensor data
         const walkCycle = time * 2;

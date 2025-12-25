@@ -4,7 +4,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Pause, Play, StopCircle, CheckCircle2, Volume2, VolumeX } from "lucide-react";
+import { Pause, Play, StopCircle, CheckCircle2, Volume2, VolumeX, RotateCcw } from "lucide-react";
 import SensorConnection from "@/components/SensorConnection";
 import { bluetoothService } from "@/services/bluetoothService";
 import { SensorPacket } from "@/types/sensorData";
@@ -44,31 +44,52 @@ const ExercisePlayer = () => {
   useEffect(() => {
     const unsubscribe = bluetoothService.onDataReceived((data) => {
       setSensorData(data);
-      
+
       // Only count reps during live phase when sensor is connected
       if (exercisePhase === 'live' && isSensorConnected && exercise && id) {
         import('@/utils/sensorDataMapper').then(({ sensorDataMapper }) => {
           if (!sensorDataMapper.isValidPacket(data)) return;
-          
+
           const processed = sensorDataMapper.processSensorPacket(data, true);
-          
+
           // Select sensors based on exercise leg
           const usesLeftLeg = exercise.leg === "left";
           const thighSensor = usesLeftLeg ? processed.sensors.left_thigh : processed.sensors.right_thigh;
           const shinSensor = usesLeftLeg ? processed.sensors.left_shin : processed.sensors.right_shin;
-          
-          const kneeAngle = sensorDataMapper.calculateJointAngle(thighSensor, shinSensor);
-          
-          const targetAngle = exerciseDefinitions[id]?.targetAngle || 90;
-          // Flexed threshold: 30% of target angle
-          // Extended threshold: 150% of target angle or target + 30°
-          const flexedThreshold = targetAngle * 0.3;
-          const extendedThreshold = Math.min(targetAngle + 30, targetAngle * 1.5);
-          
-          // Detect rep completion based on dynamic angle thresholds
-          if (repState === 'extended' && kneeAngle > extendedThreshold) {
+
+          const pelvisSensor = processed.sensors.pelvis;
+
+          // Determine which angle to track
+          const exerciseDef = exerciseDefinitions[id];
+          const measureType = exerciseDef?.measureType || 'knee';
+
+          let currentAngle = 0;
+          if (measureType === 'hip') {
+            // Track hip flexion (Thigh vs Pelvis)
+            currentAngle = sensorDataMapper.calculateJointAngle(pelvisSensor, thighSensor);
+
+            // Handle wrapping issues or specifics for SLR
+            // If angle > 180, it might be wrapping around, but calculateJointAngle handles 3 axes max
+          } else {
+            // Track knee flexion (Shin vs Thigh)
+            currentAngle = sensorDataMapper.calculateJointAngle(thighSensor, shinSensor);
+          }
+
+          const targetAngle = exerciseDef?.targetAngle || 90;
+
+          // Flexed/Active threshold: 30% of target angle (for ROM) or simple target check
+          // Extended/Rest threshold: Start position
+
+          // Logic depends on the exercise direction
+          // Most exercises: Start at 0-10 -> Go to Target -> Return to 0-10
+
+          const startThreshold = 15; // Degrees from 0 considered "returned to start"
+          const completionThreshold = targetAngle * 0.85; // 85% of target considered "rep done"
+
+          // Detect rep completion
+          if (repState === 'extended' && currentAngle > completionThreshold) {
             setRepState('flexed');
-          } else if (repState === 'flexed' && kneeAngle < flexedThreshold) {
+          } else if (repState === 'flexed' && currentAngle < startThreshold) {
             setRepState('extended');
             // Count a rep!
             setCurrentRep((prev) => {
@@ -83,11 +104,11 @@ const ExercisePlayer = () => {
                 ];
                 const feedback = feedbackMessages[Math.floor(Math.random() * feedbackMessages.length)];
                 setFeedback(feedback);
-                
+
                 // Voice announcement for rep count
                 voiceGuidance.speak(`${nextRep}`);
                 setLastRepAnnounced(nextRep);
-                
+
                 // Form cues every 5 reps
                 if (nextRep % 5 === 0 && id) {
                   const guidance = exerciseGuidance[parseInt(id) as keyof typeof exerciseGuidance];
@@ -96,7 +117,7 @@ const ExercisePlayer = () => {
                     voiceGuidance.speak(cue);
                   }
                 }
-                
+
                 return nextRep;
               } else {
                 if (currentSet < exercise.sets) {
@@ -113,8 +134,8 @@ const ExercisePlayer = () => {
               }
             });
           }
-          
-          setLastKneeAngle(kneeAngle);
+
+          setLastKneeAngle(currentAngle);
         });
       }
     });
@@ -125,14 +146,14 @@ const ExercisePlayer = () => {
   // Demo phase timer
   useEffect(() => {
     if (exercisePhase !== 'demo') return;
-    
+
     if (id) {
       const guidance = exerciseGuidance[parseInt(id) as keyof typeof exerciseGuidance];
       if (guidance) {
         voiceGuidance.speak("Watch the demonstration carefully", true);
       }
     }
-    
+
     const interval = setInterval(() => {
       setDemoTimer(prev => {
         if (prev <= 1) {
@@ -144,20 +165,20 @@ const ExercisePlayer = () => {
         return prev - 1;
       });
     }, 1000);
-    
+
     return () => clearInterval(interval);
   }, [exercisePhase, id]);
 
   // Countdown phase timer
   useEffect(() => {
     if (exercisePhase !== 'countdown') return;
-    
+
     const interval = setInterval(() => {
       setCountdownValue(prev => {
         if (prev <= 1) {
           setExercisePhase('live');
           setFeedback("Let's go! Follow along!");
-          
+
           // Announce exercise start
           if (id) {
             const guidance = exerciseGuidance[parseInt(id) as keyof typeof exerciseGuidance];
@@ -167,16 +188,16 @@ const ExercisePlayer = () => {
           }
           return 0;
         }
-        
+
         // Countdown voice
         if (prev <= 3) {
           voiceGuidance.speak(prev.toString(), true);
         }
-        
+
         return prev - 1;
       });
     }, 1000);
-    
+
     return () => clearInterval(interval);
   }, [exercisePhase, id]);
 
@@ -208,6 +229,16 @@ const ExercisePlayer = () => {
   const toggleVoice = () => {
     const enabled = voiceGuidance.toggle();
     setIsVoiceEnabled(enabled);
+  };
+
+  const handleReplayDemo = () => {
+    voiceGuidance.cancel();
+    setExercisePhase('demo');
+    setDemoTimer(10);
+    setCountdownValue(3);
+    setIsPaused(false);
+    // Optional: Reset reps? No, typically users just want to see the demo again but keep progress.
+    // If they want to restart completely, they can End Session.
   };
 
   return (
@@ -258,25 +289,25 @@ const ExercisePlayer = () => {
                 }>
                   <Canvas
                     shadows
-                    gl={{ 
-                      antialias: true, 
+                    gl={{
+                      antialias: true,
                       alpha: true,
-                      preserveDrawingBuffer: true 
+                      preserveDrawingBuffer: true
                     }}
                     onCreated={({ gl }) => {
                       gl.setClearColor('#f8fafb', 1);
                     }}
                   >
                     <PerspectiveCamera makeDefault position={[0, 1.5, 3]} />
-                    <OrbitControls 
+                    <OrbitControls
                       enableZoom={true}
                       enablePan={false}
                       minDistance={2}
                       maxDistance={5}
                       maxPolarAngle={Math.PI / 2}
                     />
-                    <ExerciseAvatar 
-                      exerciseId={id || "1"} 
+                    <ExerciseAvatar
+                      exerciseId={id || "1"}
                       currentRep={currentRep}
                       isPaused={isPaused}
                       mode={exercisePhase === 'demo' ? 'demo' : 'live'}
@@ -297,7 +328,7 @@ const ExercisePlayer = () => {
                   <p className="text-xl text-center">Starting in {demoTimer} seconds...</p>
                   <div className="mt-4 flex justify-center">
                     <div className="h-2 w-64 bg-primary-foreground/20 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-primary-foreground transition-all duration-1000"
                         style={{ width: `${((10 - demoTimer) / 10) * 100}%` }}
                       />
@@ -339,8 +370,8 @@ const ExercisePlayer = () => {
       <div className="bg-card border-t-4 border-primary p-6">
         <div className="max-w-7xl mx-auto">
           <Card className={
-            feedback.includes('WARNING') || feedback.includes('disconnected') 
-              ? 'bg-destructive/20 border-2 border-destructive' 
+            feedback.includes('WARNING') || feedback.includes('disconnected')
+              ? 'bg-destructive/20 border-2 border-destructive'
               : 'bg-accent/10 border-2 border-accent'
           }>
             <CardContent className="p-6">
@@ -380,6 +411,15 @@ const ExercisePlayer = () => {
                 Voice Off
               </>
             )}
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={handleReplayDemo}
+            title="Replay Demonstration"
+          >
+            <RotateCcw className="h-8 w-8 mr-2" />
+            Replay Demo
           </Button>
           <Button
             variant={isPaused ? "default" : "outline"}
