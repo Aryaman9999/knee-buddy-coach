@@ -4,7 +4,8 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Pause, Play, StopCircle, CheckCircle2, Volume2, VolumeX, RotateCcw } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pause, Play, StopCircle, CheckCircle2, Volume2, VolumeX, RotateCcw, Globe } from "lucide-react";
 import SensorConnection from "@/components/SensorConnection";
 import { bluetoothService } from "@/services/bluetoothService";
 import { SensorPacket } from "@/types/sensorData";
@@ -12,7 +13,7 @@ import { Suspense } from "react";
 import ExerciseAvatar from "@/components/ExerciseAvatar";
 import { exercises as exerciseList } from "./Exercises";
 import { exerciseDefinitions } from "@/components/ExerciseAvatar";
-import { voiceGuidance, exerciseGuidance } from "@/services/voiceGuidanceService";
+import { voiceGuidance, getExerciseGuidance, VoiceLanguage } from "@/services/voiceGuidanceService";
 
 type ExercisePhase = 'demo' | 'countdown' | 'live' | 'complete';
 
@@ -32,8 +33,11 @@ const ExercisePlayer = () => {
   const [repState, setRepState] = useState<'flexed' | 'extended'>('extended');
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [lastRepAnnounced, setLastRepAnnounced] = useState(0);
+  const [currentLanguage, setCurrentLanguage] = useState<VoiceLanguage>('en');
 
   const exercise = id ? exerciseList.find(ex => ex.id === parseInt(id)) : null;
+  
+  const languageOptions = voiceGuidance.getLanguageConfig();
 
   // Cleanup voice on unmount
   useEffect(() => {
@@ -111,7 +115,7 @@ const ExercisePlayer = () => {
 
                 // Form cues every 5 reps
                 if (nextRep % 5 === 0 && id) {
-                  const guidance = exerciseGuidance[parseInt(id) as keyof typeof exerciseGuidance];
+                  const guidance = getExerciseGuidance(parseInt(id));
                   if (guidance?.formCues) {
                     const cue = guidance.formCues[Math.floor(Math.random() * guidance.formCues.length)];
                     voiceGuidance.speak(cue);
@@ -148,7 +152,7 @@ const ExercisePlayer = () => {
     if (exercisePhase !== 'demo') return;
 
     if (id) {
-      const guidance = exerciseGuidance[parseInt(id) as keyof typeof exerciseGuidance];
+      const guidance = getExerciseGuidance(parseInt(id));
       if (guidance) {
         voiceGuidance.speak("Watch the demonstration carefully", true);
       }
@@ -181,7 +185,7 @@ const ExercisePlayer = () => {
 
           // Announce exercise start
           if (id) {
-            const guidance = exerciseGuidance[parseInt(id) as keyof typeof exerciseGuidance];
+            const guidance = getExerciseGuidance(parseInt(id));
             if (guidance) {
               voiceGuidance.speak(guidance.start, true);
             }
@@ -229,6 +233,11 @@ const ExercisePlayer = () => {
   const toggleVoice = () => {
     const enabled = voiceGuidance.toggle();
     setIsVoiceEnabled(enabled);
+  };
+
+  const handleLanguageChange = (lang: VoiceLanguage) => {
+    setCurrentLanguage(lang);
+    voiceGuidance.setLanguage(lang);
   };
 
   const handleReplayDemo = () => {
@@ -394,7 +403,24 @@ const ExercisePlayer = () => {
 
       {/* Control Buttons */}
       <div className="bg-card border-t-4 border-primary p-6 shadow-2xl">
-        <div className="max-w-7xl mx-auto flex gap-4">
+        <div className="max-w-7xl mx-auto flex gap-4 flex-wrap">
+          {/* Language Selector */}
+          <div className="flex items-center gap-2">
+            <Globe className="h-6 w-6 text-muted-foreground" />
+            <Select value={currentLanguage} onValueChange={(v) => handleLanguageChange(v as VoiceLanguage)}>
+              <SelectTrigger className="w-[140px] h-12 text-lg">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(languageOptions).map(([code, { name }]) => (
+                  <SelectItem key={code} value={code} className="text-lg">
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
           <Button
             variant={isVoiceEnabled ? "default" : "outline"}
             size="lg"
