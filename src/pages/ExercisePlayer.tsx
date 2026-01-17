@@ -125,14 +125,16 @@ const ExercisePlayer = () => {
                 return nextRep;
               } else {
                 if (currentSet < exercise.sets) {
-                  voiceGuidance.speak(`Set ${currentSet} complete. Rest for a moment.`, true);
+                  const setCompleteMsg = voiceGuidance.getTranslation("Set complete. Rest for a moment.");
+                  voiceGuidance.speak(setCompleteMsg.replace("Set", `Set ${currentSet}`), true);
                   setCurrentSet(currentSet + 1);
                   setLastRepAnnounced(0);
                   return 0;
                 } else {
                   setExercisePhase('complete');
                   setFeedback("Exercise complete! Excellent work!");
-                  voiceGuidance.speak("Exercise complete! Excellent work!", true);
+                  const completeMsg = voiceGuidance.getTranslation("Exercise complete! Excellent work!");
+                  voiceGuidance.speak(completeMsg, true);
                 }
                 return prev;
               }
@@ -151,19 +153,17 @@ const ExercisePlayer = () => {
   useEffect(() => {
     if (exercisePhase !== 'demo') return;
 
-    if (id) {
-      const guidance = getExerciseGuidance(parseInt(id));
-      if (guidance) {
-        voiceGuidance.speak("Watch the demonstration carefully", true);
-      }
-    }
+    // Speak demo instruction in selected language
+    const demoMessage = voiceGuidance.getTranslation("Watch the demonstration carefully");
+    voiceGuidance.speak(demoMessage, true);
 
     const interval = setInterval(() => {
       setDemoTimer(prev => {
         if (prev <= 1) {
           setExercisePhase('countdown');
           setFeedback("Get ready to begin!");
-          voiceGuidance.speak("Get ready to begin", true);
+          const readyMessage = voiceGuidance.getTranslation("Get ready to begin");
+          voiceGuidance.speak(readyMessage, true);
           return 0;
         }
         return prev - 1;
@@ -171,7 +171,7 @@ const ExercisePlayer = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [exercisePhase, id]);
+  }, [exercisePhase, currentLanguage]);
 
   // Countdown phase timer
   useEffect(() => {
