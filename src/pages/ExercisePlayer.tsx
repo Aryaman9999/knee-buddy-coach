@@ -238,6 +238,19 @@ const ExercisePlayer = () => {
   const handleLanguageChange = (lang: VoiceLanguage) => {
     setCurrentLanguage(lang);
     voiceGuidance.setLanguage(lang);
+    
+    // Speak a sample phrase in the new language to confirm
+    const confirmMessage = voiceGuidance.getTranslation("Get ready to begin");
+    voiceGuidance.speak(confirmMessage, true);
+  };
+
+  const handleTestVoice = () => {
+    if (id) {
+      const guidance = getExerciseGuidance(parseInt(id));
+      if (guidance) {
+        voiceGuidance.speak(guidance.start, true);
+      }
+    }
   };
 
   const handleReplayDemo = () => {
@@ -437,6 +450,15 @@ const ExercisePlayer = () => {
                 Voice Off
               </>
             )}
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            onClick={handleTestVoice}
+            title="Test Voice Instructions"
+          >
+            <Volume2 className="h-8 w-8 mr-2" />
+            Test Voice
           </Button>
           <Button
             variant="outline"
