@@ -36,7 +36,7 @@ const Checkin = () => {
   const [safetyAnswers, setSafetyAnswers] = useState<boolean[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [questionnaireAnswers, setQuestionnaireAnswers] = useState<number[]>([]);
-
+  
   // Gait test states
   const [gaitPhase, setGaitPhase] = useState<GaitTestPhase>('connect');
   const [sensorData, setSensorData] = useState<SensorPacket | null>(null);
@@ -60,10 +60,10 @@ const Checkin = () => {
       navigate("/dashboard");
       return;
     }
-
+    
     const newAnswers = [...safetyAnswers, answer];
     setSafetyAnswers(newAnswers);
-
+    
     if (newAnswers.length === safetyQuestions.length) {
       setStep(2);
     }
@@ -72,7 +72,7 @@ const Checkin = () => {
   const handleQuestionnaireAnswer = (value: number) => {
     const newAnswers = [...questionnaireAnswers, value];
     setQuestionnaireAnswers(newAnswers);
-
+    
     if (currentQuestion < questionnaireQuestions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
@@ -81,44 +81,35 @@ const Checkin = () => {
   };
 
   useEffect(() => {
-    // Subscribe to sensor data whenever connected
-    if (isSensorConnected) {
+    // Subscribe to sensor data during gait test
+    if (gaitPhase === 'walking' && isSensorConnected) {
       const unsubscribe = bluetoothService.onDataReceived((packet) => {
         setSensorData(packet);
-
-        // Only collect data for analysis during walking phase
-        if (gaitPhase === 'walking') {
-          const steps = gaitAnalyzer.collectGaitData(packet);
-          setStepCount(steps);
-
-          // Progress based on step count (target: 10 steps)
-          const progress = Math.min((steps / 10) * 100, 100);
-          setTestProgress(progress);
-
-          // Auto-complete after 10 steps or 20 seconds
-          if (steps >= 10 || gaitAnalyzer.getDataCount() > 400) {
-            handleCompleteTest();
-          }
+        const steps = gaitAnalyzer.collectGaitData(packet);
+        setStepCount(steps);
+        
+        // Progress based on step count (target: 10 steps)
+        const progress = Math.min((steps / 10) * 100, 100);
+        setTestProgress(progress);
+        
+        // Auto-complete after 10 steps or 20 seconds
+        if (steps >= 10 || gaitAnalyzer.getDataCount() > 400) {
+          handleCompleteTest();
         }
       });
-
+      
       return unsubscribe;
     }
   }, [gaitPhase, isSensorConnected]);
 
-  // Calibration countdown timer
+  // Calibration countdown
   useEffect(() => {
     if (gaitPhase === 'calibrate' && calibrationCountdown > 0) {
       const timer = setTimeout(() => {
-        setCalibrationCountdown(prev => prev - 1);
+        setCalibrationCountdown(calibrationCountdown - 1);
       }, 1000);
       return () => clearTimeout(timer);
-    }
-  }, [gaitPhase, calibrationCountdown]);
-
-  // Capture calibration when countdown finishes
-  useEffect(() => {
-    if (gaitPhase === 'calibrate' && calibrationCountdown === 0) {
+    } else if (gaitPhase === 'calibrate' && calibrationCountdown === 0) {
       // Capture calibration using actual sensor data
       if (sensorData) {
         gaitAnalyzer.reset();
@@ -162,7 +153,7 @@ const Checkin = () => {
       setGaitPhase('connect');
       await bluetoothService.requestDevice();
       await bluetoothService.connect();
-
+      
       // Subscribe to connection state
       bluetoothService.onStateChange((state) => {
         setIsSensorConnected(state.isConnected);
@@ -192,11 +183,11 @@ const Checkin = () => {
 
   const handleCompleteTest = async () => {
     setGaitPhase('analyzing');
-
+    
     setTimeout(async () => {
       const result = gaitAnalyzer.analyze();
       setGaitResult(result);
-
+      
       // Save gait test to database
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -233,8 +224,8 @@ const Checkin = () => {
         const avgStiffness = Math.round((questionnaireAnswers[1] / 4) * 10);
 
         // Get top recommended exercise
-        const recommendedExercise = result.recommendations.length > 0
-          ? result.recommendations[0].exerciseId
+        const recommendedExercise = result.recommendations.length > 0 
+          ? result.recommendations[0].exerciseId 
           : null;
 
         // Save weekly check-in
@@ -256,7 +247,7 @@ const Checkin = () => {
 
         setGaitPhase('results');
         setStep(4);
-
+        
         toast({
           title: "Analysis Complete",
           description: `${result.diagnoses.length} findings detected`,
@@ -314,17 +305,17 @@ const Checkin = () => {
                   <div key={index} className="space-y-6">
                     <p className="text-2xl font-medium leading-relaxed">{question}</p>
                     <div className="flex gap-4">
-                      <Button
-                        variant="destructive"
-                        size="lg"
+                      <Button 
+                        variant="destructive" 
+                        size="lg" 
                         className="flex-1"
                         onClick={() => handleSafetyAnswer(true)}
                       >
                         Yes
                       </Button>
-                      <Button
-                        variant="success"
-                        size="lg"
+                      <Button 
+                        variant="success" 
+                        size="lg" 
                         className="flex-1"
                         onClick={() => handleSafetyAnswer(false)}
                       >
@@ -365,8 +356,8 @@ const Checkin = () => {
                 ))}
               </div>
               {currentQuestion > 0 && (
-                <Button
-                  variant="ghost"
+                <Button 
+                  variant="ghost" 
                   onClick={() => {
                     setCurrentQuestion(currentQuestion - 1);
                     setQuestionnaireAnswers(questionnaireAnswers.slice(0, -1));

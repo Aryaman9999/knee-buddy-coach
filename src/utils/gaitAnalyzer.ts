@@ -1,9 +1,9 @@
 import { SensorPacket, Quaternion } from '@/types/sensorData';
 import { sensorDataMapper } from './sensorDataMapper';
-import {
-  GaitMetrics,
-  GaitDiagnosis,
-  GaitAnalysisResult,
+import { 
+  GaitMetrics, 
+  GaitDiagnosis, 
+  GaitAnalysisResult, 
   RecommendedExercise,
   DiagnosisType,
   SeverityLevel
@@ -23,17 +23,15 @@ const WEIGHT_IMBALANCE_THRESHOLD_MODERATE = 25; // % difference in weight distri
 export class GaitAnalyzer {
   private sensorHistory: SensorPacket[] = [];
   private startTime: number = 0;
+  private lastPelvisPitch: number = 0;
   private stepCount: number = 0;
-  private lastRightThighAngle: number = 0;
-  private isSwinging: boolean = false;
   private weightHistory: { left: number[]; right: number[] } = { left: [], right: [] };
 
   reset() {
     this.sensorHistory = [];
     this.startTime = Date.now();
     this.stepCount = 0;
-    this.lastRightThighAngle = 0;
-    this.isSwinging = false;
+    this.lastPelvisPitch = 0;
     this.weightHistory = { left: [], right: [] };
   }
 
@@ -43,38 +41,26 @@ export class GaitAnalyzer {
     }
 
     this.sensorHistory.push(packet);
-
+    
     // Collect weight data with smoothing
     this.weightHistory.left.push(packet.left_wt);
     this.weightHistory.right.push(packet.right_wt);
 
-    // Detect steps using Right Thigh Swing (Flexion/Extension)
-    // Calculate right thigh angle relative to vertical/pelvis
-    // Simplified: Thigh Pitch (Euler X)
-    const thighQ = sensorDataMapper.toThreeQuaternion(packet.sensors.right_thigh);
-    const euler = new Euler().setFromQuaternion(thighQ);
-    const currentAngle = (euler.x * 180) / Math.PI; // Convert to degrees
+    // Detect steps from pelvis movement
+    const pelvisQ = sensorDataMapper.toThreeQuaternion(packet.sensors.pelvis);
+    const euler = new Euler().setFromQuaternion(pelvisQ);
+    const currentPitch = euler.x;
 
-    // Zero-crossing / Threshold detection for step
-    // Walking typically involves flexion (swing forward, +angle) and extension (stance, -angle)
-    // We count a step when the leg swings forward significantly
-
-    // Thresholds
-    const SWING_THRESHOLD = 15; // degrees flexion
-    const STANCE_THRESHOLD = -5; // degrees extension
-
-    if (!this.isSwinging) {
-      if (currentAngle > SWING_THRESHOLD) {
-        this.isSwinging = true; // Started swing phase
-      }
-    } else {
-      if (currentAngle < STANCE_THRESHOLD) {
-        this.isSwinging = false; // Returned to stance
-        this.stepCount++; // Cycle complete
+    // Detect peak (step) when pitch crosses threshold
+    if (this.sensorHistory.length > 1) {
+      const pitchDiff = Math.abs(currentPitch - this.lastPelvisPitch);
+      if (pitchDiff > STEP_DETECTION_THRESHOLD && 
+          currentPitch > this.lastPelvisPitch) {
+        this.stepCount++;
       }
     }
 
-    this.lastRightThighAngle = currentAngle;
+    this.lastPelvisPitch = currentPitch;
     return this.stepCount;
   }
 
@@ -123,10 +109,10 @@ export class GaitAnalyzer {
     // Calculate ROM for each leg
     const rightROM = Math.max(...rightAngles) - Math.min(...rightAngles);
     const leftROM = Math.max(...leftAngles) - Math.min(...leftAngles);
-
+    
     // Asymmetry score based on ROM difference (better metric than average angle)
     const score = Math.abs(rightROM - leftROM);
-
+    
     const avgRight = rightAngles.reduce((a, b) => a + b, 0) / rightAngles.length;
     const avgLeft = leftAngles.reduce((a, b) => a + b, 0) / leftAngles.length;
 
@@ -199,10 +185,10 @@ export class GaitAnalyzer {
 
     // Check ROM
     if (metrics.rightKneeROM < NORMAL_ROM_MIN) {
-      const severity: SeverityLevel =
-        metrics.rightKneeROM < 40 ? 'severe' :
-          metrics.rightKneeROM < 45 ? 'moderate' : 'mild';
-
+      const severity: SeverityLevel = 
+        metrics.rightKneeROM < 40 ? 'severe' : 
+        metrics.rightKneeROM < 45 ? 'moderate' : 'mild';
+      
       diagnoses.push({
         type: 'LIMITED_ROM_RIGHT',
         severity,
@@ -212,10 +198,10 @@ export class GaitAnalyzer {
     }
 
     if (metrics.leftKneeROM < NORMAL_ROM_MIN) {
-      const severity: SeverityLevel =
-        metrics.leftKneeROM < 40 ? 'severe' :
-          metrics.leftKneeROM < 45 ? 'moderate' : 'mild';
-
+      const severity: SeverityLevel = 
+        metrics.leftKneeROM < 40 ? 'severe' : 
+        metrics.leftKneeROM < 45 ? 'moderate' : 'mild';
+      
       diagnoses.push({
         type: 'LIMITED_ROM_LEFT',
         severity,
@@ -226,9 +212,9 @@ export class GaitAnalyzer {
 
     // Check asymmetry
     if (metrics.asymmetryScore > ASYMMETRY_THRESHOLD_MILD) {
-      const severity: SeverityLevel =
+      const severity: SeverityLevel = 
         metrics.asymmetryScore > ASYMMETRY_THRESHOLD_MODERATE ? 'moderate' : 'mild';
-
+      
       diagnoses.push({
         type: 'ASYMMETRIC_GAIT',
         severity,
@@ -239,9 +225,9 @@ export class GaitAnalyzer {
 
     // Check lateral stability
     if (metrics.lateralStabilityScore > LATERAL_STABILITY_THRESHOLD) {
-      const severity: SeverityLevel =
+      const severity: SeverityLevel = 
         metrics.lateralStabilityScore > LATERAL_STABILITY_THRESHOLD * 1.5 ? 'moderate' : 'mild';
-
+      
       diagnoses.push({
         type: 'UNSTABLE_KNEE',
         severity,
@@ -261,11 +247,11 @@ export class GaitAnalyzer {
 
     // Check weight distribution imbalance
     if (metrics.weightDistributionScore > WEIGHT_IMBALANCE_THRESHOLD_MILD) {
-      const severity: SeverityLevel =
+      const severity: SeverityLevel = 
         metrics.weightDistributionScore > WEIGHT_IMBALANCE_THRESHOLD_MODERATE ? 'moderate' : 'mild';
-
+      
       const heavierSide = metrics.averageRightWeight > metrics.averageLeftWeight ? 'right' : 'left';
-
+      
       diagnoses.push({
         type: 'WEIGHT_IMBALANCE',
         severity,
