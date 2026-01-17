@@ -160,6 +160,14 @@ export class VoiceGuidanceService {
     this.queue = [];
     this.isSpeaking = false;
   }
+
+  // Public method to get translated phrase
+  getTranslation(key: string): string {
+    if (translations[key]) {
+      return translations[key][this.language];
+    }
+    return key;
+  }
 }
 
 export const voiceGuidance = new VoiceGuidanceService();
