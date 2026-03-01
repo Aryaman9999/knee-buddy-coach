@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* High contrast health-focused theme */
+    --background: 0 0% 98%;
+    --foreground: 220 25% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 25% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 10%;
+
+    /* Medical blue - trustworthy and calming */
+    --primary: 210 85% 42%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Wellness green - health and vitality */
+    --secondary: 145 65% 45%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 220 15% 40%;
+
+    --accent: 145 60% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 85%;
+    --input: 214 32% 90%;
+    --ring: 210 85% 42%;
+
+    --radius: 0.75rem;
+
+    /* Success state */
+    --success: 145 65% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning state */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Chart colors */
+    --chart-pain: 0 72% 51%;
+    --chart-stiffness: 38 92% 50%;
+    --chart-gait: 145 65% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-size: 20px; /* Large base font for elderly users */
+    line-height: 1.6;
+  }
+
+  h1 {
+    @apply text-5xl font-bold mb-6;
+  }
+
+  h2 {
+    @apply text-4xl font-semibold mb-4;
+  }
+
+  h3 {
+    @apply text-3xl font-semibold mb-3;
+  }
+
+  /* Large touch targets */
+  button, a {
+    min-height: 56px;
+    min-width: 56px;
+  }
+}

@@ -1,0 +1,498 @@
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Pause, Play, StopCircle, CheckCircle2, Volume2, VolumeX, RotateCcw } from "lucide-react";
+import SensorConnection from "@/components/SensorConnection";
+import { bluetoothService } from "@/services/bluetoothService";
+import { SensorPacket } from "@/types/sensorData";
+import { Suspense } from "react";
+import ExerciseAvatar from "@/components/ExerciseAvatar";
+import { exercises as exerciseList } from "./Exercises";
+import { exerciseDefinitions } from "@/components/ExerciseAvatar";
+import { voiceGuidance, exerciseGuidance } from "@/services/voiceGuidanceService";
+
+type ExercisePhase = 'demo' | 'countdown' | 'live' | 'complete';
+
+const ExercisePlayer = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [currentSet, setCurrentSet] = useState(1);
+  const [currentRep, setCurrentRep] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [feedback, setFeedback] = useState("Watch the demonstration carefully!");
+  const [exercisePhase, setExercisePhase] = useState<ExercisePhase>('demo');
+  const [countdownValue, setCountdownValue] = useState(3);
+  const [demoTimer, setDemoTimer] = useState(10);
+  const [sensorData, setSensorData] = useState<SensorPacket | null>(null);
+  const [isSensorConnected, setIsSensorConnected] = useState(false);
+  const [lastKneeAngle, setLastKneeAngle] = useState(0);
+  const [repState, setRepState] = useState<'flexed' | 'extended'>('extended');
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
+  const [lastRepAnnounced, setLastRepAnnounced] = useState(0);
+
+  const exercise = id ? exerciseList.find(ex => ex.id === parseInt(id)) : null;
+
+  // Cleanup voice on unmount
+  useEffect(() => {
+    return () => voiceGuidance.cancel();
+  }, []);
+
+  // Directly subscribe to bluetooth state to ensure isSensorConnected is always in sync.
+  // This is needed because SensorConnection's onConnectionChange callback might miss the
+  // initial state due to React render batching.
+  useEffect(() => {
+    const unsubscribe = bluetoothService.onStateChange((state) => {
+      setIsSensorConnected(state.isConnected);
+    });
+    return unsubscribe;
+  }, []);
+
+  // Subscribe to sensor data and detect reps
+  useEffect(() => {
+    const unsubscribe = bluetoothService.onDataReceived((data) => {
+      setSensorData(data);
+
+      // Only count reps during live phase when sensor is connected
+      if (exercisePhase === 'live' && isSensorConnected && exercise && id) {
+        import('@/utils/sensorDataMapper').then(({ sensorDataMapper }) => {
+          if (!sensorDataMapper.isValidPacket(data)) return;
+
+          const processed = sensorDataMapper.processSensorPacket(data, true);
+
+          // Select sensors based on exercise leg
+          const usesLeftLeg = exercise.leg === "left";
+          const thighSensor = usesLeftLeg ? processed.sensors.left_thigh : processed.sensors.right_thigh;
+          const shinSensor = usesLeftLeg ? processed.sensors.left_shin : processed.sensors.right_shin;
+
+          const pelvisSensor = processed.sensors.pelvis;
+
+          // Determine which angle to track
+          const exerciseDef = exerciseDefinitions[id];
+          const measureType = exerciseDef?.measureType || 'knee';
+
+          let currentAngle = 0;
+          if (measureType === 'hip') {
+            // Track hip flexion (Thigh vs Pelvis)
+            currentAngle = sensorDataMapper.calculateJointAngle(pelvisSensor, thighSensor);
+
+            // Handle wrapping issues or specifics for SLR
+            // If angle > 180, it might be wrapping around, but calculateJointAngle handles 3 axes max
+          } else {
+            // Track knee flexion (Shin vs Thigh)
+            currentAngle = sensorDataMapper.calculateJointAngle(thighSensor, shinSensor);
+          }
+
+          const targetAngle = exerciseDef?.targetAngle || 90;
+
+          // Flexed/Active threshold: 30% of target angle (for ROM) or simple target check
+          // Extended/Rest threshold: Start position
+
+          // Logic depends on the exercise direction
+          // Most exercises: Start at 0-10 -> Go to Target -> Return to 0-10
+
+          const startThreshold = 15; // Degrees from 0 considered "returned to start"
+          const completionThreshold = targetAngle * 0.85; // 85% of target considered "rep done"
+
+          // Debug logging
+          console.log(`[REP] angle=${currentAngle.toFixed(1)}° | state=${repState} | threshold=${completionThreshold.toFixed(0)}° | start<${startThreshold}°`);
+
+          // Detect rep completion
+          if (repState === 'extended' && currentAngle > completionThreshold) {
+            setRepState('flexed');
+          } else if (repState === 'flexed' && currentAngle < startThreshold) {
+            setRepState('extended');
+            // Count a rep!
+            setCurrentRep((prev) => {
+              const nextRep = prev + 1;
+              if (nextRep <= exercise.reps) {
+                const feedbackMessages = [
+                  "Great form!",
+                  "Keep it up!",
+                  "Excellent movement!",
+                  "You're doing great!",
+                  "Perfect technique!",
+                ];
+                const feedback = feedbackMessages[Math.floor(Math.random() * feedbackMessages.length)];
+                setFeedback(feedback);
+
+                // Voice announcement for rep count
+                voiceGuidance.speak(`${nextRep}`);
+                setLastRepAnnounced(nextRep);
+
+                // Form cues every 5 reps
+                if (nextRep % 5 === 0 && id) {
+                  const guidance = exerciseGuidance[parseInt(id) as keyof typeof exerciseGuidance];
+                  if (guidance?.formCues) {
+                    const cue = guidance.formCues[Math.floor(Math.random() * guidance.formCues.length)];
+                    voiceGuidance.speak(cue);
+                  }
+                }
+
+                return nextRep;
+              } else {
+                if (currentSet < exercise.sets) {
+                  voiceGuidance.speak(`Set ${currentSet} complete. Rest for a moment.`, true);
+                  setCurrentSet(currentSet + 1);
+                  setLastRepAnnounced(0);
+                  return 0;
+                } else {
+                  setExercisePhase('complete');
+                  setFeedback("Exercise complete! Excellent work!");
+                  voiceGuidance.speak("Exercise complete! Excellent work!", true);
+                }
+                return prev;
+              }
+            });
+          }
+
+          setLastKneeAngle(currentAngle);
+        });
+      }
+    });
+
+    return unsubscribe;
+  }, [exercisePhase, isSensorConnected, repState, currentSet, exercise]);
+
+  // Demo phase timer
+  useEffect(() => {
+    if (exercisePhase !== 'demo') return;
+
+    if (id) {
+      const guidance = exerciseGuidance[parseInt(id) as keyof typeof exerciseGuidance];
+      if (guidance) {
+        voiceGuidance.speak("Watch the demonstration carefully", true);
+      }
+    }
+
+    const interval = setInterval(() => {
+      setDemoTimer(prev => {
+        if (prev <= 1) {
+          setExercisePhase('countdown');
+          setFeedback("Get ready to begin!");
+          voiceGuidance.speak("Get ready to begin", true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [exercisePhase, id]);
+
+  // Countdown phase timer
+  useEffect(() => {
+    if (exercisePhase !== 'countdown') return;
+
+    const interval = setInterval(() => {
+      setCountdownValue(prev => {
+        if (prev <= 1) {
+          setExercisePhase('live');
+          setFeedback("Let's go! Follow along!");
+
+          // Announce exercise start
+          if (id) {
+            const guidance = exerciseGuidance[parseInt(id) as keyof typeof exerciseGuidance];
+            if (guidance) {
+              voiceGuidance.speak(guidance.start, true);
+            }
+          }
+          return 0;
+        }
+
+        // Countdown voice
+        if (prev <= 3) {
+          voiceGuidance.speak(prev.toString(), true);
+        }
+
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [exercisePhase, id]);
+
+  // Show disconnected warning when in live mode without sensors
+  // Also clear warning when sensors connect during live mode
+  useEffect(() => {
+    if (exercisePhase === 'live') {
+      if (!isSensorConnected) {
+        setFeedback("⚠️ WARNING: Sensors disconnected - Reps are NOT being counted. Please reconnect!");
+      } else {
+        // Clear any existing disconnection warning
+        setFeedback(prev =>
+          prev.includes('WARNING') || prev.includes('disconnected')
+            ? "Let's go! Follow along!"
+            : prev
+        );
+      }
+    }
+  }, [exercisePhase, isSensorConnected]);
+
+  if (!exercise) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card>
+          <CardContent className="p-12 text-center">
+            <h2 className="text-3xl font-bold mb-4">Exercise not found</h2>
+            <Button onClick={() => navigate("/exercises")}>Back to Exercises</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const handleEndSession = () => {
+    voiceGuidance.cancel();
+    navigate("/exercises");
+  };
+
+  const toggleVoice = () => {
+    const enabled = voiceGuidance.toggle();
+    setIsVoiceEnabled(enabled);
+  };
+
+  const handleReplayDemo = () => {
+    voiceGuidance.cancel();
+    setExercisePhase('demo');
+    setDemoTimer(10);
+    setCountdownValue(3);
+    setIsPaused(false);
+    // Optional: Reset reps? No, typically users just want to see the demo again but keep progress.
+    // If they want to restart completely, they can End Session.
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Sensor Connection Banner */}
+      <div className="bg-card border-b-2 border-primary p-4">
+        <div className="max-w-7xl mx-auto">
+          <SensorConnection onConnectionChange={setIsSensorConnected} />
+        </div>
+      </div>
+
+      {/* Exercise Info Header */}
+      <div className="bg-primary text-primary-foreground p-6 shadow-lg">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold">{exercise.name}</h1>
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-bold">
+              Set {currentSet} of {exercise.sets}
+            </div>
+            <div className="text-2xl">
+              Reps: {currentRep} / {exercise.reps}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Exercise Visualization */}
+      <div className="flex-1 flex items-center justify-center p-8">
+        <Card className="w-full max-w-6xl h-[600px] bg-muted/20 border-4 border-primary relative">
+          <CardContent className="h-full flex items-center justify-center">
+            {exercisePhase === 'complete' ? (
+              <div className="text-center space-y-8">
+                <CheckCircle2 className="h-48 w-48 text-success mx-auto" />
+                <h2 className="text-5xl font-bold text-success">Exercise Complete!</h2>
+                <p className="text-2xl">Excellent work on completing all sets!</p>
+              </div>
+            ) : (
+              <div className="w-full h-full">
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center space-y-4">
+                      <Play className="h-32 w-32 text-primary mx-auto animate-pulse" />
+                      <p className="text-2xl font-bold text-primary">Loading 3D Avatar...</p>
+                    </div>
+                  </div>
+                }>
+                  <Canvas
+                    shadows
+                    gl={{
+                      antialias: true,
+                      alpha: true,
+                      preserveDrawingBuffer: true
+                    }}
+                    onCreated={({ gl }) => {
+                      gl.setClearColor('#f8fafb', 1);
+                    }}
+                  >
+                    <PerspectiveCamera makeDefault position={[0, 1.5, 3]} />
+                    <OrbitControls
+                      enableZoom={true}
+                      enablePan={false}
+                      minDistance={2}
+                      maxDistance={5}
+                      maxPolarAngle={Math.PI / 2}
+                    />
+                    <ExerciseAvatar
+                      exerciseId={id || "1"}
+                      currentRep={currentRep}
+                      isPaused={isPaused}
+                      mode={exercisePhase === 'demo' ? 'demo' : 'live'}
+                      sensorData={sensorData}
+                      isSensorConnected={isSensorConnected}
+                      trackedLeg={exercise.leg as "right" | "left" | "bilateral"}
+                    />
+                  </Canvas>
+                </Suspense>
+              </div>
+            )}
+
+            {/* Demo Phase Overlay */}
+            {exercisePhase === 'demo' && (
+              <div className="absolute inset-0 z-10 pointer-events-none flex items-start justify-center pt-8">
+                <div className="bg-primary/95 text-primary-foreground px-8 py-6 rounded-lg shadow-2xl backdrop-blur-sm border-2 border-primary-foreground/20 animate-fade-in">
+                  <h2 className="text-3xl font-bold mb-2 text-center">Watch the Demonstration</h2>
+                  <p className="text-xl text-center">Starting in {demoTimer} seconds...</p>
+                  <div className="mt-4 flex justify-center">
+                    <div className="h-2 w-64 bg-primary-foreground/20 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary-foreground transition-all duration-1000"
+                        style={{ width: `${((10 - demoTimer) / 10) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Countdown Phase Overlay */}
+            {exercisePhase === 'countdown' && (
+              <div className="absolute inset-0 z-20 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+                <div className="text-center animate-scale-in">
+                  <div className="text-9xl font-bold text-white mb-4 animate-pulse">
+                    {countdownValue > 0 ? countdownValue : 'GO!'}
+                  </div>
+                  <p className="text-3xl text-white font-semibold">
+                    {countdownValue === 3 && "Get Ready!"}
+                    {countdownValue === 2 && "Almost there!"}
+                    {countdownValue === 1 && "Here we go!"}
+                    {countdownValue === 0 && "Start moving!"}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Live Mode Badge */}
+            {exercisePhase === 'live' && (
+              <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 animate-fade-in">
+                <div className="bg-success/90 text-success-foreground px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
+                  <div className="h-3 w-3 bg-success-foreground rounded-full animate-pulse"></div>
+                  <span className="font-semibold">LIVE MODE</span>
+                </div>
+                {isSensorConnected && (
+                  <div className="bg-card/95 border-2 border-primary text-foreground px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm">
+                    <div className="text-center">
+                      <div className="text-4xl font-bold text-primary">{Math.round(lastKneeAngle)}°</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Target: {exerciseDefinitions[id || "1"]?.targetAngle || 90}°
+                      </div>
+                      <div className="text-xs mt-1">
+                        <span className={`font-semibold ${repState === 'flexed' ? 'text-orange-500' : 'text-green-500'}`}>
+                          {repState === 'flexed' ? '● Flexed' : '○ Extended'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Feedback Box */}
+      <div className="bg-card border-t-4 border-primary p-6">
+        <div className="max-w-7xl mx-auto">
+          <Card className={
+            feedback.includes('WARNING') || feedback.includes('disconnected')
+              ? 'bg-destructive/20 border-2 border-destructive'
+              : 'bg-accent/10 border-2 border-accent'
+          }>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className={
+                  feedback.includes('WARNING') || feedback.includes('disconnected')
+                    ? 'h-4 w-4 bg-destructive rounded-full animate-pulse'
+                    : 'h-4 w-4 bg-success rounded-full animate-pulse'
+                }></div>
+                <p className={
+                  feedback.includes('WARNING') || feedback.includes('disconnected')
+                    ? 'text-3xl font-bold text-destructive'
+                    : 'text-3xl font-semibold text-foreground'
+                }>{feedback}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Control Buttons */}
+      <div className="bg-card border-t-4 border-primary p-6 shadow-2xl">
+        <div className="max-w-7xl mx-auto flex gap-4">
+          <Button
+            variant={isVoiceEnabled ? "default" : "outline"}
+            size="lg"
+            onClick={toggleVoice}
+          >
+            {isVoiceEnabled ? (
+              <>
+                <Volume2 className="h-8 w-8 mr-2" />
+                Voice On
+              </>
+            ) : (
+              <>
+                <VolumeX className="h-8 w-8 mr-2" />
+                Voice Off
+              </>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={handleReplayDemo}
+            title="Replay Demonstration"
+          >
+            <RotateCcw className="h-8 w-8 mr-2" />
+            Replay Demo
+          </Button>
+          <Button
+            variant={isPaused ? "default" : "outline"}
+            size="lg"
+            className="flex-1"
+            onClick={() => setIsPaused(!isPaused)}
+            disabled={exercisePhase !== 'live'}
+          >
+            {isPaused ? (
+              <>
+                <Play className="h-8 w-8 mr-2" />
+                Resume
+              </>
+            ) : (
+              <>
+                <Pause className="h-8 w-8 mr-2" />
+                Pause
+              </>
+            )}
+          </Button>
+          <Button
+            variant="destructive"
+            size="lg"
+            className="flex-1"
+            onClick={handleEndSession}
+          >
+            <StopCircle className="h-8 w-8 mr-2" />
+            End Session
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ExercisePlayer;
