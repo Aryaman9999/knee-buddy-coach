@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { Group, Mesh, Quaternion as ThreeQuaternion, Euler } from "three";
 import { SensorPacket } from "@/types/sensorData";
 import { GaitTestPhase } from "@/types/gaitAnalysis";
+import { sensorDataMapper } from "@/utils/sensorDataMapper";
 
 interface GaitAvatarProps {
   phase: GaitTestPhase;
