@@ -7,6 +7,7 @@ import { Home, ClipboardList, LogOut, Clock, AlertCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import LatestCheckinSummary from "@/components/LatestCheckinSummary";
 
 interface ProgressData {
   week: string;
