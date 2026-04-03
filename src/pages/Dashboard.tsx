@@ -7,6 +7,7 @@ import { Home, ClipboardList, LogOut, Clock, AlertCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import LatestCheckinSummary from "@/components/LatestCheckinSummary";
 
 interface ProgressData {
   week: string;
@@ -23,6 +24,7 @@ const Dashboard = () => {
   const [canCheckin, setCanCheckin] = useState(true);
   const [daysUntilCheckin, setDaysUntilCheckin] = useState(0);
   const [progressData, setProgressData] = useState<ProgressData[]>([]);
+  const [latestCheckin, setLatestCheckin] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -73,6 +75,9 @@ const Dashboard = () => {
 
         // Transform data for charts
         if (checkins && checkins.length > 0) {
+          // Set latest checkin for summary
+          setLatestCheckin(checkins[checkins.length - 1]);
+
           const chartData: ProgressData[] = checkins.map((checkin, index) => {
             const gaitTest = gaitTests?.find(g => g.id === checkin.gait_test_id);
             return {
@@ -144,6 +149,9 @@ const Dashboard = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Latest Check-in Summary */}
+        <LatestCheckinSummary checkin={latestCheckin} />
 
         {/* Progress Charts */}
         {loading ? (
