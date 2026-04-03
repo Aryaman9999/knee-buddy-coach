@@ -5,7 +5,7 @@ import { sensorDataMapper } from "@/utils/sensorDataMapper";
 import { exerciseDefinitions } from "@/components/ExerciseAvatar";
 import { voiceGuidance, exerciseGuidance } from "@/services/voiceGuidanceService";
 import { realtimeCoachingEngine } from "@/services/realtimeCoachingEngine";
-import { Euler } from "three";
+import { Euler, Quaternion as ThreeQuaternion } from "three";
 
 interface ExerciseInfo {
   id: number;
@@ -104,23 +104,39 @@ export function useExerciseRepCounter(
       const currentAngle = Math.max(rightAngle, leftAngle);
 
       // Posture validation
+      const isCalib = sensorDataMapper.isCalibrated();
       const pelvisWorldQ = sensorDataMapper.toThreeQuaternion(pelvis);
-      const pelvisEuler = new Euler().setFromQuaternion(pelvisWorldQ);
-      const pelvisPitch = (pelvisEuler.x * 180) / Math.PI;
-
       const thighSensor = usesLeftLeg ? leftThigh : rightThigh;
       const thighWorldQ = sensorDataMapper.toThreeQuaternion(thighSensor);
-      const thighEuler = new Euler().setFromQuaternion(thighWorldQ);
+
+      // Normalize so that standing is always ~0 pitch
+      let normPelvisQ = pelvisWorldQ.clone();
+      let normThighQ = thighWorldQ.clone();
+      if (!isCalib) {
+        const correctionQ = new ThreeQuaternion().setFromEuler(new Euler(-Math.PI / 2, 0, 0));
+        normPelvisQ = correctionQ.clone().multiply(pelvisWorldQ);
+        normThighQ = correctionQ.clone().multiply(thighWorldQ);
+      }
+
+      const pelvisEuler = new Euler().setFromQuaternion(normPelvisQ);
+      const pelvisPitch = (pelvisEuler.x * 180) / Math.PI;
+
+      const thighEuler = new Euler().setFromQuaternion(normThighQ);
       const thighPitch = (thighEuler.x * 180) / Math.PI;
 
       let determinedPosture = 'unknown';
-      if (thighPitch <= -35) {
-        determinedPosture = 'standing';
-      } else {
-        if (pelvisPitch <= -45) {
+      // If pelvis is pitched backwards significantly, they are lying down
+      if (pelvisPitch < -45) {
+        determinedPosture = 'lying';
+      }
+      // If pelvis is upright, check thigh to distinguish standing vs sitting
+      else if (pelvisPitch >= -45 && pelvisPitch < 45) {
+        // If thigh is pitched forward (lifted up to horizontal), they are sitting
+        if (thighPitch > 45) {
           determinedPosture = 'sitting';
         } else {
-          determinedPosture = 'lying';
+          // Thigh is pointing down
+          determinedPosture = 'standing';
         }
       }
 
@@ -130,7 +146,7 @@ export function useExerciseRepCounter(
 
       if (determinedPosture !== intendedPosture && determinedPosture !== 'unknown') {
         const now = Date.now();
-        if (now - lastPostureWarningTime.current > 10000) {
+        if (now - lastPostureWarningTime.current > 120000) { // 2 minutes cooldown
           voiceGuidance.speakWithPriority(`This exercise should be done while ${intendedPosture === 'lying' ? 'lying down' : intendedPosture}. Please correct your posture.`, 'correction');
           lastPostureWarningTime.current = now;
         }
