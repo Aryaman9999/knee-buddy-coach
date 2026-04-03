@@ -94,6 +94,10 @@ const ExerciseAvatar = ({ exerciseId, currentRep, isPaused, mode, sensorData, is
       let sensorCorrectionQ = new Quaternion(); // identity (no correction)
       if ((currentPose === 'standing' || currentPose === 'sitting') && !sensorDataMapper.isCalibrated()) {
         sensorCorrectionQ.setFromEuler(new Euler(-Math.PI / 2, 0, 0));
+      } else if (currentPose === 'lying' && sensorDataMapper.isCalibrated()) {
+        // When calibrated, sensor outputs Pitch=-90 for lying down.
+        // We negate it here (Pitch=+90) so we don't double apply the -90 pitch already on the parent group.
+        sensorCorrectionQ.setFromEuler(new Euler(Math.PI / 2, 0, 0));
       }
 
       // Helper to apply the correction to a sensor quaternion
