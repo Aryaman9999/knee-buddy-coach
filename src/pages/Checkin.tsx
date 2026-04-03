@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { AlertCircle, CheckCircle2, Activity, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { bluetoothService } from "@/services/bluetoothService";
 import { gaitAnalyzer } from "@/utils/gaitAnalyzer";
+import { sensorDataMapper } from "@/utils/sensorDataMapper";
 import { GaitAnalysisResult, GaitTestPhase } from "@/types/gaitAnalysis";
 import { SensorPacket } from "@/types/sensorData";
 import GaitResults from "@/components/GaitResults";
@@ -46,6 +47,7 @@ const Checkin = () => {
   const [walkingTimer, setWalkingTimer] = useState(10);
   const [gaitResult, setGaitResult] = useState<GaitAnalysisResult | null>(null);
   const [isSensorConnected, setIsSensorConnected] = useState(false);
+  const isCompleting = useRef(false);
 
   const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
@@ -123,9 +125,7 @@ const Checkin = () => {
       if (sensorData) {
         gaitAnalyzer.reset();
         // Apply calibration offsets from standing pose
-        import('@/utils/sensorDataMapper').then(({ sensorDataMapper }) => {
-          sensorDataMapper.calibrate(sensorData);
-        });
+        sensorDataMapper.calibrate(sensorData);
         toast({
           title: "Calibration Complete",
           description: "Press Proceed when ready to walk",
@@ -191,6 +191,9 @@ const Checkin = () => {
   };
 
   const handleCompleteTest = async () => {
+    if (isCompleting.current) return;
+    isCompleting.current = true;
+
     setGaitPhase('analyzing');
 
     setTimeout(async () => {

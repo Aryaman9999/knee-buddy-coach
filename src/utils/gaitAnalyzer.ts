@@ -25,7 +25,9 @@ export class GaitAnalyzer {
   private startTime: number = 0;
   private stepCount: number = 0;
   private lastRightThighAngle: number = 0;
-  private isSwinging: boolean = false;
+  private lastLeftThighAngle: number = 0;
+  private isRightSwinging: boolean = false;
+  private isLeftSwinging: boolean = false;
   private weightHistory: { left: number[]; right: number[] } = { left: [], right: [] };
 
   reset() {
@@ -33,7 +35,9 @@ export class GaitAnalyzer {
     this.startTime = Date.now();
     this.stepCount = 0;
     this.lastRightThighAngle = 0;
-    this.isSwinging = false;
+    this.lastLeftThighAngle = 0;
+    this.isRightSwinging = false;
+    this.isLeftSwinging = false;
     this.weightHistory = { left: [], right: [] };
   }
 
@@ -42,18 +46,25 @@ export class GaitAnalyzer {
       return this.stepCount;
     }
 
-    this.sensorHistory.push(packet);
+    // Process calibration and smooth quaternions before analyzing data
+    const processedPacket = sensorDataMapper.processSensorPacket(packet);
+
+    this.sensorHistory.push(processedPacket);
 
     // Collect weight data with smoothing
-    this.weightHistory.left.push(packet.left_wt);
-    this.weightHistory.right.push(packet.right_wt);
+    this.weightHistory.left.push(processedPacket.left_wt);
+    this.weightHistory.right.push(processedPacket.right_wt);
 
-    // Detect steps using Right Thigh Swing (Flexion/Extension)
-    // Calculate right thigh angle relative to vertical/pelvis
+    // Detect steps using Thigh Swing (Flexion/Extension) for both legs
+    // Calculate thigh angle relative to vertical/pelvis
     // Simplified: Thigh Pitch (Euler X)
-    const thighQ = sensorDataMapper.toThreeQuaternion(packet.sensors.right_thigh);
-    const euler = new Euler().setFromQuaternion(thighQ);
-    const currentAngle = (euler.x * 180) / Math.PI; // Convert to degrees
+    const rightThighQ = sensorDataMapper.toThreeQuaternion(processedPacket.sensors.right_thigh);
+    const rightEuler = new Euler().setFromQuaternion(rightThighQ);
+    const rightCurrentAngle = (rightEuler.x * 180) / Math.PI; // Convert to degrees
+
+    const leftThighQ = sensorDataMapper.toThreeQuaternion(processedPacket.sensors.left_thigh);
+    const leftEuler = new Euler().setFromQuaternion(leftThighQ);
+    const leftCurrentAngle = (leftEuler.x * 180) / Math.PI;
 
     // Zero-crossing / Threshold detection for step
     // Walking typically involves flexion (swing forward, +angle) and extension (stance, -angle)
@@ -63,18 +74,32 @@ export class GaitAnalyzer {
     const SWING_THRESHOLD = 15; // degrees flexion
     const STANCE_THRESHOLD = -5; // degrees extension
 
-    if (!this.isSwinging) {
-      if (currentAngle > SWING_THRESHOLD) {
-        this.isSwinging = true; // Started swing phase
+    // Right Leg Step Detection
+    if (!this.isRightSwinging) {
+      if (rightCurrentAngle > SWING_THRESHOLD) {
+        this.isRightSwinging = true; // Started swing phase
       }
     } else {
-      if (currentAngle < STANCE_THRESHOLD) {
-        this.isSwinging = false; // Returned to stance
+      if (rightCurrentAngle < STANCE_THRESHOLD) {
+        this.isRightSwinging = false; // Returned to stance
         this.stepCount++; // Cycle complete
       }
     }
 
-    this.lastRightThighAngle = currentAngle;
+    // Left Leg Step Detection
+    if (!this.isLeftSwinging) {
+      if (leftCurrentAngle > SWING_THRESHOLD) {
+        this.isLeftSwinging = true; // Started swing phase
+      }
+    } else {
+      if (leftCurrentAngle < STANCE_THRESHOLD) {
+        this.isLeftSwinging = false; // Returned to stance
+        this.stepCount++; // Cycle complete
+      }
+    }
+
+    this.lastRightThighAngle = rightCurrentAngle;
+    this.lastLeftThighAngle = leftCurrentAngle;
     return this.stepCount;
   }
 

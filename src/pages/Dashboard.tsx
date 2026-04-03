@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Home, ClipboardList, Settings, Clock, AlertCircle } from "lucide-react";
+import { Home, ClipboardList, LogOut, Clock, AlertCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -102,7 +102,7 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate("/auth");
+    navigate("/");
   };
 
   return (
@@ -111,8 +111,8 @@ const Dashboard = () => {
       <header className="bg-card border-b-4 border-primary p-6 shadow-md">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <h1 className="text-4xl font-bold">Welcome, {userName}!</h1>
-          <Button variant="outline" size="icon" onClick={handleLogout}>
-            <Settings className="h-8 w-8" />
+          <Button variant="outline" size="icon" onClick={handleLogout} title="Log out">
+            <LogOut className="h-8 w-8" />
           </Button>
         </div>
       </header>
@@ -125,9 +125,9 @@ const Dashboard = () => {
             {canCheckin ? (
               <>
                 <h2 className="text-4xl font-bold mb-6">Ready for This Week's Check-in?</h2>
-                <Button 
-                  variant="secondary" 
-                  size="lg" 
+                <Button
+                  variant="secondary"
+                  size="lg"
                   className="text-2xl h-24 px-16"
                   onClick={() => navigate("/checkin")}
                 >
@@ -174,17 +174,17 @@ const Dashboard = () => {
                     <YAxis domain={[0, 10]} style={{ fontSize: '16px' }} />
                     <Tooltip contentStyle={{ fontSize: '16px' }} />
                     <Legend wrapperStyle={{ fontSize: '16px' }} />
-                    <Line 
-                      type="monotone" 
-                      dataKey="pain" 
-                      stroke="hsl(var(--chart-pain))" 
+                    <Line
+                      type="monotone"
+                      dataKey="pain"
+                      stroke="hsl(var(--chart-pain))"
                       strokeWidth={3}
                       name="Pain Score"
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="stiffness" 
-                      stroke="hsl(var(--chart-stiffness))" 
+                    <Line
+                      type="monotone"
+                      dataKey="stiffness"
+                      stroke="hsl(var(--chart-stiffness))"
                       strokeWidth={3}
                       name="Stiffness Score"
                     />
@@ -207,17 +207,17 @@ const Dashboard = () => {
                     <YAxis domain={[0, 180]} style={{ fontSize: '16px' }} />
                     <Tooltip contentStyle={{ fontSize: '16px' }} />
                     <Legend wrapperStyle={{ fontSize: '16px' }} />
-                    <Line 
-                      type="monotone" 
-                      dataKey="rightKneeROM" 
-                      stroke="hsl(var(--chart-gait))" 
+                    <Line
+                      type="monotone"
+                      dataKey="rightKneeROM"
+                      stroke="hsl(var(--chart-gait))"
                       strokeWidth={3}
                       name="Right Knee ROM (°)"
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="leftKneeROM" 
-                      stroke="hsl(var(--chart-primary))" 
+                    <Line
+                      type="monotone"
+                      dataKey="leftKneeROM"
+                      stroke="hsl(var(--chart-primary))"
                       strokeWidth={3}
                       name="Left Knee ROM (°)"
                     />
@@ -230,17 +230,17 @@ const Dashboard = () => {
 
         {/* Navigation Buttons */}
         <div className="flex gap-4 pb-8">
-          <Button 
-            variant="default" 
-            size="lg" 
+          <Button
+            variant="default"
+            size="lg"
             className="flex-1"
           >
             <Home className="h-8 w-8 mr-2" />
             Dashboard
           </Button>
-          <Button 
-            variant="outline" 
-            size="lg" 
+          <Button
+            variant="outline"
+            size="lg"
             className="flex-1"
             onClick={() => navigate("/exercises")}
           >

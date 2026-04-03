@@ -96,7 +96,12 @@ export class SensorDataMapper {
 
   // Process sensor packet with calibration and smoothing
   processSensorPacket(packet: SensorPacket, enableSmoothing: boolean = true): SensorPacket {
-    const processed = { ...packet };
+    // Deep clone the sensors object so we avoid mutating the original packet's sensors
+    // Mutating the original causes infinite spinning in Avatar useFrame loops!
+    const processed = {
+      ...packet,
+      sensors: { ...packet.sensors }
+    };
 
     // Process each sensor
     for (const [key, quaternion] of Object.entries(packet.sensors)) {
