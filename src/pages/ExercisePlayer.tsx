@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Pause, Play, StopCircle, CheckCircle2, Volume2, VolumeX, RotateCcw } from "lucide-react";
+import { Pause, Play, StopCircle, CheckCircle2, Volume2, VolumeX, RotateCcw, Mic, MicOff, Bot, Languages } from "lucide-react";
 import SensorConnection from "@/components/SensorConnection";
 import { bluetoothService } from "@/services/bluetoothService";
 import { Suspense } from "react";
@@ -14,6 +14,7 @@ import { sensorDataMapper } from "@/utils/sensorDataMapper";
 import { exerciseDefinitions } from "@/components/ExerciseAvatar";
 import { voiceGuidance, exerciseGuidance } from "@/services/voiceGuidanceService";
 import { useExerciseRepCounter } from "@/hooks/useExerciseRepCounter";
+import { useVoiceCoach } from "@/hooks/useVoiceCoach";
 
 type ExercisePhase = 'demo' | 'countdown' | 'live' | 'complete';
 
@@ -40,12 +41,49 @@ const ExercisePlayer = () => {
     sensorData,
     exerciseComplete,
     setFeedback,
+    targetAngle,
+    actualPosture,
+    expectedPosture,
   } = useExerciseRepCounter(
     exercise ? { id: exercise.id, reps: exercise.reps, sets: exercise.sets, leg: exercise.leg } : null,
     exercisePhase,
     isSensorConnected,
     isPaused
   );
+
+  const handleEndSession = useCallback(() => {
+    voiceGuidance.cancel();
+    navigate("/exercises");
+  }, [navigate]);
+
+  // Voice coach hook (Gemini AI + Speech Recognition)
+  const {
+    isListening,
+    isMicSupported,
+    lastTranscript,
+    micStatus,
+    isProcessing,
+    currentLang,
+    toggleMic,
+    toggleLanguage,
+  } = useVoiceCoach({
+    exerciseId: exercise?.id || 0,
+    exerciseName: exercise?.name || '',
+    currentAngle: exercise?.leg === 'left' ? lastLeftAngle : lastRightAngle,
+    targetAngle,
+    currentRep,
+    totalReps: exercise?.reps || 0,
+    currentSet,
+    totalSets: exercise?.sets || 0,
+    repState,
+    exercisePhase,
+    isSensorConnected,
+    actualPosture,
+    expectedPosture,
+    onPauseRequest: () => setIsPaused(true),
+    onResumeRequest: () => setIsPaused(false),
+    onEndRequest: handleEndSession,
+  });
 
   // Set phase to complete when hook signals it
   useEffect(() => {
@@ -136,10 +174,7 @@ const ExercisePlayer = () => {
     );
   }
 
-  const handleEndSession = () => {
-    voiceGuidance.cancel();
-    navigate("/exercises");
-  };
+
 
   const toggleVoice = () => {
     const enabled = voiceGuidance.toggle();
@@ -156,7 +191,6 @@ const ExercisePlayer = () => {
 
   // Determine which angle is the "active" tracked one
   const trackedAngle = exercise.leg === "left" ? lastLeftAngle : lastRightAngle;
-  const targetAngle = exerciseDefinitions[id || "1"]?.targetAngle || 90;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -302,11 +336,37 @@ const ExercisePlayer = () => {
                     </div>
                   </div>
                 )}
+
+                {/* AI Coach Active Badge */}
+                {isListening && (
+                  <div className="bg-violet-600/90 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-fade-in">
+                    <Bot className="h-4 w-4" />
+                    <span className="font-semibold text-sm">AI Coach Active</span>
+                    <span className="text-xs opacity-75 ml-1">({currentLang === 'hi-IN' ? 'हिंदी' : 'EN'})</span>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Voice Transcript Banner */}
+      {lastTranscript && isListening && (
+        <div className="bg-violet-950/90 border-t-2 border-violet-400 px-6 py-3 animate-fade-in">
+          <div className="max-w-7xl mx-auto flex items-center gap-3">
+            <Mic className="h-4 w-4 text-violet-400 animate-pulse" />
+            <p className="text-violet-200 text-lg italic truncate">
+              "{lastTranscript}"
+            </p>
+            {isProcessing && (
+              <span className="text-violet-400 text-sm flex items-center gap-1">
+                <Bot className="h-3 w-3 animate-spin" /> Thinking...
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Feedback Box */}
       <div className="bg-card border-t-4 border-primary p-6">
@@ -337,6 +397,46 @@ const ExercisePlayer = () => {
       {/* Control Buttons */}
       <div className="bg-card border-t-4 border-primary p-6 shadow-2xl">
         <div className="max-w-7xl mx-auto flex gap-4">
+          {/* Mic Toggle Button */}
+          {isMicSupported ? (
+            <Button
+              variant={isListening ? "default" : "outline"}
+              size="lg"
+              onClick={toggleMic}
+              className={isListening ? 'bg-violet-600 hover:bg-violet-700 relative' : ''}
+              title={isListening ? 'Stop listening' : 'Start AI Coach'}
+            >
+              {isListening ? (
+                <>
+                  <Mic className="h-8 w-8 mr-2 animate-pulse" />
+                  <span>AI Coach</span>
+                  {/* Pulsing ring */}
+                  <span className="absolute -top-1 -right-1 h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-violet-300"></span>
+                  </span>
+                </>
+              ) : (
+                <><MicOff className="h-8 w-8 mr-2" />AI Coach</>
+              )}
+            </Button>
+          ) : (
+            <Button variant="outline" size="lg" disabled title="Speech recognition not supported in this browser">
+              <MicOff className="h-8 w-8 mr-2 opacity-50" />Mic N/A
+            </Button>
+          )}
+          {/* Language Toggle */}
+          {isMicSupported && (
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={toggleLanguage}
+              title={currentLang === 'hi-IN' ? 'Switch to English' : 'हिंदी में बदलें'}
+            >
+              <Languages className="h-8 w-8 mr-2" />
+              {currentLang === 'hi-IN' ? 'हिंदी' : 'ENG'}
+            </Button>
+          )}
           <Button
             variant={isVoiceEnabled ? "default" : "outline"}
             size="lg"

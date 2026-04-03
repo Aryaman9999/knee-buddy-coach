@@ -18,6 +18,8 @@ class BluetoothService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectTimeout: number | null = null;
+  // Store bound handler reference so removeEventListener can match it (Issue 11)
+  private boundHandleDataReceived = this.handleDataReceived.bind(this);
 
   private state: BluetoothConnectionState = {
     isConnected: false,
@@ -39,14 +41,14 @@ class BluetoothService {
 
       this.device = device;
       this.device.addEventListener('gattserverdisconnected', this.onDisconnected.bind(this));
-      
+
       await this.connect();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Bluetooth request error:', error);
-      this.updateState({ 
-        isConnecting: false, 
-        error: `Failed to request device: ${message}` 
+      this.updateState({
+        isConnecting: false,
+        error: `Failed to request device: ${message}`
       });
       toast({
         title: "Connection Failed",
@@ -65,25 +67,25 @@ class BluetoothService {
 
     try {
       this.updateState({ isConnecting: true });
-      
+
       console.log('Connecting to GATT server...');
       const server = await this.device.gatt?.connect();
-      
+
       if (!server) {
         throw new Error('Failed to connect to GATT server');
       }
 
       console.log('Getting primary service...');
       const service = await server.getPrimaryService(SERVICE_UUID);
-      
+
       console.log('Getting characteristic...');
       this.characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
-      
+
       // Subscribe to notifications
       await this.characteristic.startNotifications();
       this.characteristic.addEventListener(
         'characteristicvaluechanged',
-        this.handleDataReceived.bind(this)
+        this.boundHandleDataReceived
       );
 
       this.reconnectAttempts = 0;
@@ -129,7 +131,7 @@ class BluetoothService {
         await this.characteristic.stopNotifications();
         this.characteristic.removeEventListener(
           'characteristicvaluechanged',
-          this.handleDataReceived.bind(this)
+          this.boundHandleDataReceived
         );
       } catch (error) {
         console.error('Error stopping notifications:', error);
@@ -173,7 +175,7 @@ class BluetoothService {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000);
       this.reconnectAttempts++;
-      
+
       this.reconnectTimeout = window.setTimeout(async () => {
         try {
           await this.connect();
@@ -194,7 +196,7 @@ class BluetoothService {
   private handleDataReceived(event: Event): void {
     const target = event.target as BluetoothRemoteGATTCharacteristic;
     const value = target.value;
-    
+
     if (!value) return;
 
     try {
@@ -223,7 +225,7 @@ class BluetoothService {
 
     // 2. Parse 5 quaternions (80 bytes total)
     const pelvis = {
-      qw: view.getFloat32(offset, true), 
+      qw: view.getFloat32(offset, true),
       qx: view.getFloat32(offset + 4, true),
       qy: view.getFloat32(offset + 8, true),
       qz: view.getFloat32(offset + 12, true)

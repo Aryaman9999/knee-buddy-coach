@@ -1,14 +1,80 @@
+export type MessagePriority = 'safety' | 'correction' | 'angle' | 'pace' | 'breathing' | 'encouragement' | 'normal';
+
+interface QueuedMessage {
+  text: string;
+  priority: MessagePriority;
+}
+
+type SpeakLifecycleCallback = () => void;
+
 export class VoiceGuidanceService {
   private synth: SpeechSynthesis;
   private isSpeaking: boolean = false;
-  private queue: string[] = [];
+  private queue: QueuedMessage[] = [];
   private isEnabled: boolean = true;
+  private lastSpoken: string = '';
+  private onSpeakStartCallback: SpeakLifecycleCallback | null = null;
+  private onSpeakEndCallback: SpeakLifecycleCallback | null = null;
+  private languageOverride: 'en-US' | 'hi-IN' | 'en-IN' | null = null;
+  private readonly MAX_QUEUE_SIZE = 3;
+  private cachedVoices: SpeechSynthesisVoice[] = [];
 
   constructor() {
     this.synth = window.speechSynthesis;
+    // Cache voices (they load async in some browsers)
+    this.cachedVoices = this.synth.getVoices();
+    this.synth.onvoiceschanged = () => {
+      this.cachedVoices = this.synth.getVoices();
+      console.log('[VoiceGuidance] Voices loaded:', this.cachedVoices.length);
+    };
+  }
+
+  /**
+   * Detect if text contains Hindi (Devanagari) characters
+   */
+  private isHindiText(text: string): boolean {
+    // Devanagari Unicode range: \u0900-\u097F
+    return /[\u0900-\u097F]/.test(text);
+  }
+
+  /**
+   * Find the best voice for a language
+   */
+  private findVoice(langPrefix: string): SpeechSynthesisVoice | null {
+    if (this.cachedVoices.length === 0) {
+      this.cachedVoices = this.synth.getVoices();
+    }
+    // Try exact match first, then prefix match
+    return this.cachedVoices.find(v => v.lang === langPrefix) ||
+      this.cachedVoices.find(v => v.lang.startsWith(langPrefix.split('-')[0])) ||
+      null;
+  }
+
+  /**
+   * Register callbacks for speech lifecycle (used by speech recognition for echo prevention)
+   */
+  setOnSpeakStart(callback: SpeakLifecycleCallback | null) {
+    this.onSpeakStartCallback = callback;
+  }
+
+  setOnSpeakEnd(callback: SpeakLifecycleCallback | null) {
+    this.onSpeakEndCallback = callback;
+  }
+
+  setLanguageOverride(lang: 'en-US' | 'hi-IN' | 'en-IN' | null) {
+    this.languageOverride = lang;
+    console.log('[VoiceGuidance] Language override set to:', lang);
   }
 
   speak(text: string, interrupt: boolean = false) {
+    this.speakWithPriority(text, 'normal', interrupt);
+  }
+
+  /**
+   * Speak with a priority level. Higher priority messages can interrupt lower ones.
+   * Low-priority messages are dropped if the queue is full.
+   */
+  speakWithPriority(text: string, priority: MessagePriority = 'normal', interrupt: boolean = false) {
     if (!this.isEnabled) return;
 
     if (interrupt) {
@@ -18,7 +84,23 @@ export class VoiceGuidanceService {
     }
 
     if (this.isSpeaking && !interrupt) {
-      this.queue.push(text);
+      // Drop low-priority messages if queue is full
+      if (this.queue.length >= this.MAX_QUEUE_SIZE) {
+        const rank = this.getPriorityRank(priority);
+        // Only add if higher priority than the lowest in queue
+        const lowestInQueue = this.queue.reduce((min, msg) =>
+          this.getPriorityRank(msg.priority) > min ? this.getPriorityRank(msg.priority) : min, 0);
+        if (rank >= lowestInQueue) return; // Skip low-priority message
+
+        // Remove lowest priority message and add this one
+        const lowestIdx = this.queue.findIndex(msg =>
+          this.getPriorityRank(msg.priority) === lowestInQueue);
+        if (lowestIdx >= 0) this.queue.splice(lowestIdx, 1);
+      }
+
+      this.queue.push({ text, priority });
+      // Sort queue by priority
+      this.queue.sort((a, b) => this.getPriorityRank(a.priority) - this.getPriorityRank(b.priority));
       return;
     }
 
@@ -27,20 +109,64 @@ export class VoiceGuidanceService {
 
   private speakNow(text: string) {
     this.isSpeaking = true;
+    this.lastSpoken = text;
+    this.onSpeakStartCallback?.();
+
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.9;
     utterance.pitch = 1.0;
     utterance.volume = 1.0;
 
+    // Auto-detect language and select appropriate voice
+    const isHindi = this.isHindiText(text);
+    const targetLang = this.languageOverride || (isHindi ? 'hi-IN' : 'en-IN');
+
+    if (targetLang === 'hi-IN') {
+      utterance.lang = 'hi-IN';
+      const hindiVoice = this.findVoice('hi-IN');
+      if (hindiVoice) {
+        utterance.voice = hindiVoice;
+      }
+    } else {
+      utterance.lang = targetLang;
+      const englishVoice = this.findVoice(targetLang) || this.findVoice('en-US');
+      if (englishVoice) {
+        utterance.voice = englishVoice;
+      }
+    }
+
     utterance.onend = () => {
       this.isSpeaking = false;
+      this.onSpeakEndCallback?.();
+
       if (this.queue.length > 0) {
         const next = this.queue.shift();
-        if (next) this.speakNow(next);
+        if (next) this.speakNow(next.text);
       }
     };
 
+    utterance.onerror = (e) => {
+      if (e.error !== 'interrupted') {
+        console.error('[VoiceGuidance] TTS error:', e);
+      }
+      this.isSpeaking = false;
+      this.onSpeakEndCallback?.();
+    };
+
     this.synth.speak(utterance);
+  }
+
+  private getPriorityRank(p: MessagePriority): number {
+    const ranks: Record<MessagePriority, number> = {
+      safety: 0,
+      correction: 1,
+      angle: 2,
+      pace: 3,
+      breathing: 4,
+      encouragement: 5,
+      normal: 3,
+    };
+    return ranks[p];
   }
 
   toggle() {
@@ -57,6 +183,14 @@ export class VoiceGuidanceService {
     this.synth.cancel();
     this.queue = [];
     this.isSpeaking = false;
+  }
+
+  getLastSpoken(): string {
+    return this.lastSpoken;
+  }
+
+  getIsSpeaking(): boolean {
+    return this.isSpeaking;
   }
 }
 

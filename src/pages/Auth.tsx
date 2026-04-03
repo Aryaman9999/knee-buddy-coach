@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,9 @@ import { Activity } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState((location.state as { mode?: string } | null)?.mode !== "signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -58,7 +59,7 @@ const Auth = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (password !== confirmPassword) {
       toast({
         title: "Passwords Don't Match",
@@ -193,11 +194,11 @@ const Auth = () => {
                   className="h-16 text-xl"
                 />
               </div>
-              
+
               <div className="bg-warning/10 border-2 border-warning rounded-lg p-6 space-y-4">
                 <h3 className="font-bold text-2xl text-warning-foreground">Safety Disclaimer</h3>
                 <p className="text-lg leading-relaxed">{safetyDisclaimer}</p>
-                
+
                 <div className="flex items-start space-x-4 pt-2">
                   <Checkbox
                     id="disclaimer"
@@ -211,10 +212,10 @@ const Auth = () => {
                 </div>
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full" 
-                size="lg" 
+              <Button
+                type="submit"
+                className="w-full"
+                size="lg"
                 disabled={loading || !agreedToDisclaimer}
               >
                 {loading ? "Creating Account..." : "Create Account"}

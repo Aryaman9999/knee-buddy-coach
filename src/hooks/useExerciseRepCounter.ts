@@ -3,7 +3,9 @@ import { SensorPacket } from "@/types/sensorData";
 import { bluetoothService } from "@/services/bluetoothService";
 import { sensorDataMapper } from "@/utils/sensorDataMapper";
 import { exerciseDefinitions } from "@/components/ExerciseAvatar";
-import { voiceGuidance, exerciseGuidance, ExerciseGuidanceEntry } from "@/services/voiceGuidanceService";
+import { voiceGuidance, exerciseGuidance } from "@/services/voiceGuidanceService";
+import { realtimeCoachingEngine } from "@/services/realtimeCoachingEngine";
+import { Euler } from "three";
 
 interface ExerciseInfo {
   id: number;
@@ -37,6 +39,8 @@ export function useExerciseRepCounter(
   const [repState, setRepState] = useState<'flexed' | 'extended'>('extended');
   const [sensorData, setSensorData] = useState<SensorPacket | null>(null);
   const [exerciseComplete, setExerciseComplete] = useState(false);
+  const [actualPosture, setActualPosture] = useState<string>('unknown');
+  const [expectedPosture, setExpectedPosture] = useState<string>('lying');
 
   // Correction tracking refs (don't trigger re-renders)
   const lastCorrectionTime = useRef(0);
@@ -44,6 +48,7 @@ export function useExerciseRepCounter(
   const peakAngle = useRef(0);
   const lastRepAnnounced = useRef(0);
   const specificCueIndex = useRef(0);
+  const lastPostureWarningTime = useRef(0);
 
   const CORRECTION_COOLDOWN_MS = 5000;
   const MIN_REP_DURATION_MS = 1500;
@@ -51,7 +56,7 @@ export function useExerciseRepCounter(
   const speakCorrection = useCallback((text: string) => {
     const now = Date.now();
     if (now - lastCorrectionTime.current >= CORRECTION_COOLDOWN_MS) {
-      voiceGuidance.speak(text);
+      voiceGuidance.speakWithPriority(text, 'correction');
       lastCorrectionTime.current = now;
     }
   }, []);
@@ -93,9 +98,43 @@ export function useExerciseRepCounter(
       setLastRightAngle(rightAngle);
       setLastLeftAngle(leftAngle);
 
-      // Select tracked angle based on exercise leg
+      // Select tracked angle based on which leg is moving the most
+      // This will allow counting the rep properly whether they use the right or left leg.
       const usesLeftLeg = exercise.leg === "left";
-      const currentAngle = usesLeftLeg ? leftAngle : rightAngle;
+      const currentAngle = Math.max(rightAngle, leftAngle);
+
+      // Posture validation
+      const pelvisWorldQ = sensorDataMapper.toThreeQuaternion(pelvis);
+      const pelvisEuler = new Euler().setFromQuaternion(pelvisWorldQ);
+      const pelvisPitch = (pelvisEuler.x * 180) / Math.PI;
+
+      const thighSensor = usesLeftLeg ? leftThigh : rightThigh;
+      const thighWorldQ = sensorDataMapper.toThreeQuaternion(thighSensor);
+      const thighEuler = new Euler().setFromQuaternion(thighWorldQ);
+      const thighPitch = (thighEuler.x * 180) / Math.PI;
+
+      let determinedPosture = 'unknown';
+      if (thighPitch <= -35) {
+        determinedPosture = 'standing';
+      } else {
+        if (pelvisPitch <= -45) {
+          determinedPosture = 'sitting';
+        } else {
+          determinedPosture = 'lying';
+        }
+      }
+
+      const intendedPosture = exerciseDef?.startingPose || 'lying';
+      setActualPosture(determinedPosture);
+      setExpectedPosture(intendedPosture);
+
+      if (determinedPosture !== intendedPosture && determinedPosture !== 'unknown') {
+        const now = Date.now();
+        if (now - lastPostureWarningTime.current > 10000) {
+          voiceGuidance.speakWithPriority(`This exercise should be done while ${intendedPosture === 'lying' ? 'lying down' : intendedPosture}. Please correct your posture.`, 'correction');
+          lastPostureWarningTime.current = now;
+        }
+      }
 
       const targetAngle = exerciseDef?.targetAngle || 90;
       const startThreshold = 15;
@@ -109,11 +148,36 @@ export function useExerciseRepCounter(
 
       console.log(`[REP] angle=${currentAngle.toFixed(1)}° | state=${repState} | threshold=${completionThreshold.toFixed(0)}° | start<${startThreshold}° | peak=${peakAngle.current.toFixed(0)}°`);
 
+      // --- Real-time coaching engine ---
+      const coachingMessages = realtimeCoachingEngine.processSensorUpdate({
+        exerciseId: id,
+        currentAngle,
+        targetAngle,
+        repState,
+        currentRep,
+        totalReps: exercise.reps,
+        currentSet,
+        totalSets: exercise.sets,
+      });
+      for (const msg of coachingMessages) {
+        voiceGuidance.speakWithPriority(msg.text, msg.priority);
+      }
+
       // Rep detection
-      if (repState === 'extended' && currentAngle > completionThreshold) {
-        setRepState('flexed');
-        if (repStartTime.current === 0) {
-          repStartTime.current = Date.now();
+      if (repState === 'extended') {
+        // Track the moment they *start* lifting the leg (movement begins)
+        if (currentAngle > startThreshold) {
+          if (repStartTime.current === 0) {
+            repStartTime.current = Date.now();
+          }
+        } else {
+          // If they are resting fully extended, reset start time
+          repStartTime.current = 0;
+        }
+
+        // When they reach the top of the range of motion
+        if (currentAngle > completionThreshold) {
+          setRepState('flexed');
         }
       } else if (repState === 'flexed' && currentAngle < startThreshold) {
         setRepState('extended');
@@ -134,7 +198,7 @@ export function useExerciseRepCounter(
         }
 
         // Reset for next rep
-        repStartTime.current = Date.now();
+        repStartTime.current = 0;
         peakAngle.current = 0;
 
         // Count the rep
@@ -147,6 +211,12 @@ export function useExerciseRepCounter(
             setFeedback(feedbackMessages[Math.floor(Math.random() * feedbackMessages.length)]);
             voiceGuidance.speak(`${nextRep}`);
             lastRepAnnounced.current = nextRep;
+
+            // Notify coaching engine of rep completion (pace tracking)
+            const paceMsg = realtimeCoachingEngine.onRepCompleted();
+            if (paceMsg) {
+              voiceGuidance.speakWithPriority(paceMsg.text, paceMsg.priority);
+            }
 
             // Specific form cue every 3 reps
             if (nextRep % 3 === 0 && guidance?.corrections.specific) {
@@ -163,6 +233,7 @@ export function useExerciseRepCounter(
               setCurrentSet((s) => s + 1);
               lastRepAnnounced.current = 0;
               specificCueIndex.current = 0;
+              realtimeCoachingEngine.reset(); // Reset coaching for new set
               return 0;
             } else {
               setExerciseComplete(true);
@@ -197,7 +268,7 @@ export function useExerciseRepCounter(
     });
 
     return unsubscribe;
-  }, [exercisePhase, isSensorConnected, repState, currentSet, exercise, isPaused, speakCorrection]);
+  }, [exercisePhase, isSensorConnected, repState, currentSet, currentRep, exercise, isPaused, speakCorrection]);
 
   // Show disconnected warning
   useEffect(() => {
@@ -214,6 +285,9 @@ export function useExerciseRepCounter(
     }
   }, [exercisePhase, isSensorConnected]);
 
+  // Compute targetAngle for external use (voice coach)
+  const targetAngle = exercise ? (exerciseDefinitions[exercise.id.toString()]?.targetAngle || 90) : 90;
+
   return {
     currentRep,
     currentSet,
@@ -224,5 +298,8 @@ export function useExerciseRepCounter(
     sensorData,
     exerciseComplete,
     setFeedback,
+    targetAngle,
+    actualPosture,
+    expectedPosture,
   };
 }
